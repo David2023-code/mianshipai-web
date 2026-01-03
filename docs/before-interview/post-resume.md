@@ -1,9 +1,5 @@
 # 投递简历
 
-::: tip
-如有疑问，可免费 [加群](/docs/services/group.md) 讨论咨询，也可参与 [1v1 面试咨询服务](/docs/services/1v1.md)， 专业、系统、高效、全流程 准备前端面试
-:::
-
 ## 投递方式
 
 - 各大招聘网站或 App ，如拉勾、BOSS 直聘、脉脉等
@@ -38,7 +34,7 @@
 - 贝壳 https://campus.ke.com/
 - 联想 https://talent.lenovo.com.cn/
 
-如有其他公司招聘网址，欢迎给我们[提交](https://github.com/mianshipai/mianshipai-web/issues/new/choose)，我们会及时收录。
+如有其他公司招聘网址，欢迎给我们[提交](https://github.com/David2023-code/mianshipai-web/issues/new/choose)，我们会及时收录。
 
 ## 更多
 

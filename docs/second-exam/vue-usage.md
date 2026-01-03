@@ -2,10 +2,6 @@
 
 [Vue](https://cn.vuejs.org/) 是国内最普及的前端框架，面试考察概率最高。
 
-::: tip
-如有疑问，可免费 [加群](/docs/services/group.md) 讨论咨询，也可参与 [1v1 面试咨询服务](/docs/services/1v1.md)， 专业、系统、高效、全流程 准备前端面试
-:::
-
 ## 🔥Vue3 和 Vue2 的区别有哪些？说几个主要的
 
 Vue 3 提供了更现代化、更高性能的架构，通过 `Composition API` 和 `Proxy` 响应式系统等改进提升了开发体验 :tada::tada::tada:。相比于 Vue 2，它的优势如下:

@@ -1,14 +1,10 @@
 # 面试派
 
-系统专业的前端面试导航，网址 https://www.mianshipai.com/
-
-- [双越老师](https://juejin.cn/user/1714893868765373) 主导开发
-- 大厂面试规范
-- 多人共建，开源免费
+系统专业的前端面试导航（VitePress 文档站）。
 
 ## 贡献题目和答案
 
-欢迎提交 PR 来贡献题目和答案，同时你可以贴上自己的博客链接，我们相互导流，共同受益。
+欢迎提交 PR 来贡献题目和答案。
 
 具体步骤如下。
 
@@ -55,20 +51,14 @@ npm run docs:dev
 
 PS. 如有图片，统一放在 `docs/imgs` 目录下。
 
-### 关于你的博客
-
-你的博客内容里一定要有到[面试派](https://www.mianshipai.com/)的导流文案，否则不予通过，我们是相互引流。
-
-博客内容一定要和该题目相关，要保证质量和内容，不能为了引流和引流。
-
 ### 提交 PR
 
 把修改的代码 git commit 和 push 到你自己的 GitHub 项目
 
-然后提交 PR 到 [mianshipai-web](https://github.com/mianshipai/mianshipai-web) 的 `main` 分支，并添加 reviewer 审核人 `wangfupeng1988`
+然后提交 PR 到 [mianshipai-web](https://github.com/David2023-code/mianshipai-web#) 的 `main` 分支
 
 管理员会每日查看 PR 并审核
 
 ## 发布上线
 
-管理员会统一提交 PR ，把 `main` 合并到 `prod-deploy` 分支，合并后即可触发 [actions](https://github.com/mianshipai/mianshipai-web/actions) 并发布上线。
+管理员会统一提交 PR ，把 `main` 合并到 `prod-deploy` 分支，合并后即可触发 [actions](https://github.com/David2023-code/mianshipai-web/actions) 并发布上线。
