@@ -13,614 +13,339 @@
 
 ::: details 参考答案
 
-**MVVM（Model-View-ViewModel）** 是一种用于构建用户界面的架构模式，用于现代的前端开发框架（Vue、Angular）。它通过 **数据绑定** 和 **视图模型** 提供了高效的 UI 更新和数据同步机制。
+**MVVM (Model-View-ViewModel)** 是一种架构模式，核心是将 **数据模型 (Model)** 和 **视图 (View)** 分离，并通过 **ViewModel** 进行连接。
 
-MVVM 模式主要由 `Model` （模型）、 `View` （视图）、 `ViewModel` （视图模型）三个部分组成。
-
-- `Model`表示程序的核心数据和业务逻辑，它不关心用户界面，只负责数据的获取、存储和处理，并提供与外界交互的接口。
-- `View`负责展示数据和用户交互，简单来说他就是我们看到的UI 组件或 HTML 页面。
-- `ViewModel`是连接 `View` 和 `Model` 的桥梁，它不直接操作视图或模型，而是通过数据绑定将两者连接起来。
-
-参考下面的示例：
-
-```vue
-<div id="app">
-  <input v-model="message"/>
-  <p>{{ computedValue }}</p>
-</div>
-
-<script setup>
-const message = ref('Hello, MVVM!')
-
-const computedValue = computed(() => {
-  return '用户输入值变为:' + message.value
-})
-</script>
-```
-
-上述代码展示了一个输入框，当用户输入内容的时候，输入框下面的计算值会随之变化。在这个示例中， `message` 变量属于 `Model` ，它包含了应用的核心数据。输入框与页面展示就属于View，负责展示数据和用户交互。 `computed` 和 `v-model语法糖` 作为 `ViewModel` ，用于更新视图和数据。
+1.  **Model (模型)**: 负责数据存储和业务逻辑（如后端 API 数据）。
+2.  **View (视图)**: 负责页面展示（HTML/CSS）。
+3.  **ViewModel (视图模型)**: Vue 的核心实例。它通过 **Data Binding (数据绑定)** 让 Model 的变化自动更新 View，通过 **DOM Listeners (事件监听)** 让 View 的交互自动修改 Model。
 
 ![](../imgs/vue/mvvm.png)
 
 :::
 
-## 什么是 VDOM 它和 DOM 有什么关系
+## 什么是 VDOM，它和 DOM 有什么关系
 
 ::: details 参考答案
 
-页面的所有元素、属性和文本都通过 `DOM` 节点表示， `VDOM（Virtual DOM，虚拟 DOM）` 是DOM渲染的一种优化，它是一个内存中的虚拟树，是真实 DOM 的轻量级 JavaScript 对象表示。
+**Virtual DOM (虚拟 DOM)** 是用 JavaScript 对象来模拟真实的 DOM 结构。
 
-VDOM主要用于优化 UI 渲染性能，它的工作流程大致如下：
+**关系与作用**：
 
-- 1️⃣**创建虚拟 DOM**：当组件的状态或数据发生变化时，Vue 会重新生成虚拟 DOM。
-- 2️⃣**比较虚拟 DOM 和真实 DOM**：Vue 使用一种高效的算法来比较新旧虚拟 DOM 的差异（即 diff 算法）。
-- 3️⃣**更新 DOM**：根据差异更新真实的 DOM，仅修改有变化的部分，而不是重新渲染整个 DOM 树。
+1.  **轻量级副本**：VDOM 是真实 DOM 的轻量级 JS 对象表示。
+2.  **性能优化**：直接操作真实 DOM 代价高昂。Vue 通过比较新旧 VDOM 的差异（Diff 算法），计算出最小的更新路径，然后再去更新真实 DOM，从而提升性能。
+3.  **跨平台**：VDOM 本质是 JS 对象，可以渲染到浏览器、Weex、小程序或 SSR 服务端。
 
 :::
 
-## 手写 VNode 对象，表示如下 DOM 节点
-
-```html
-<div class="container">
-  <img src="x1.png" />
-  <p>hello</p>
-</div>
-```
-
-> 如果你还不熟悉 `虚拟 DOM` 和 `渲染函数` 的概念的话，请先学习[vue的渲染机制](https://cn.vuejs.org/guide/extras/rendering-mechanism.html)
+## 手写 VNode 对象
 
 ::: details 参考答案
 
-Vue 模板会被预编译成**虚拟 DOM 渲染函数**，我们也可以直接手写**渲染函数**，在处理高度动态的逻辑时，渲染函数相比于模板更加灵活，因为我们可以完全地使用 `JavaScript` 来构造我们想要的 `vnode` 。
-
-Vue 提供了一个 `h()` 函数用于创建 `vnodes`
+Vue 的 `h` 函数（渲染函数）用于创建 VNode。
 
 ```javascript
-h(type, props, children)
-```
+// 目标 HTML
+// <div class="container">
+//   <img src="x1.png" />
+//   <p>hello</p>
+// </div>
 
-- `type`: 表示要渲染的节点类型（例如 HTML 标签名或组件）。
-- `props`: 一个对象，包含该节点的属性（例如 `class`、`style`、`src` 等）。
-- `children`: 子节点，可以是文本内容、数组或者其他 VNode。
-
-```javascript
-import { h } from 'vue'
-
-export default {
-  render() {
-    return h(
-      'div',
-      {
-        class: 'container',
-      },
-      [
-        h('img', {
-          src: 'x1.png',
-        }),
-        h('p', null, 'hello'),
-      ]
-    )
-  },
+// VNode 表示
+const vnode = {
+  type: 'div',
+  props: { class: 'container' },
+  children: [
+    { type: 'img', props: { src: 'x1.png' } },
+    { type: 'p', children: 'hello' },
+  ],
 }
 ```
 
 :::
 
-## Vue 组件初始化的各个阶段都做了什么？
+## Vue 组件初始化流程
 
 ::: details 参考答案
-从组件的创建到挂载到页面，再到组件的更新和销毁，每个阶段都有特定的任务和职责。
 
-🎯 组件实例创建：当我们第一次访问页面时，Vue创建组件实例，解析`props`、`data`、`methods`等属性方法，在组合式API中，执行 `setup()`。
-
-🎯 响应式系统建立：基于 `Proxy` 实现 `reactive`、`ref`，建立依赖收集和触发更新机制，`props` 传递时自动响应式处理。
-
-🎯 模板编译与渲染：将 template 编译为渲染函数，Vue 3 通过 静态提升等方式优化性能，Vite 预编译 `SFC（单文件组件）`。
-
-🎯 DOM 挂载：执行渲染函数生成 VNode，通过 `Patch 算法` 转换为真实 DOM 并插入页面，同时初始化子组件。`mounted（Options API`）或 `onMounted（Composition API）`触发，可进行 DOM 操作。
-
-🎯 响应式更新：状态变更触发 `Diff` 算法 计算最小 DOM 更新，`beforeUpdate`、`updated（Options API）`或 `onBeforeUpdate`、`onUpdated（Composition API）`执行相应逻辑。
-
-🎯 组件销毁：移除 DOM，清理副作用（解绑事件、销毁 `watcher`、清理 `effect`），递归卸载子组件，触发 `beforeUnmount`、`unmounted（Options API）`或 `onBeforeUnmount`、`onUnmounted（Composition API）`。
-
-> Vue 3 通过 `Proxy` 响应式、编译优化、生命周期调整提升性能，使组件更高效。
+1.  **Init (初始化)**: 初始化生命周期、事件中心、Props、Data、Computed、Watch 等，并建立响应式系统。
+2.  **Compile (编译)**: (如果使用 template) 将模板编译为 Render 函数。
+3.  **Mount (挂载)**:
+    - 执行 Render 函数生成 VNode。
+    - 通过 Patch 算法将 VNode 转换为真实 DOM。
+    - 将 DOM 挂载到页面上。
 
 :::
 
-## Vue 如何实现双向数据绑定
+## Vue 双向绑定原理
 
 ::: details 参考答案
 
-Vue 实现双向数据绑定的核心是通过**响应式系统**的 **数据劫持**和 **观察者模式**来实现的。
+Vue 的双向绑定主要由 **数据劫持** 和 **发布-订阅模式** 构成。
 
-🎯 **数据劫持**
-
-Vue 2.x 使用 `Object.defineProperty` 对数据对象的每个属性递归添加 `getter/setter` ，当数据的属性被访问时，触发 `getter` ，当属性被修改时，触发 `setter` 通知视图进行更新。通过这种方式，Vue 可以监控数据的变化，并在数据变化时通知视图更新。
-
-> Vue 3.x 使用 Proxy通过代理对象拦截整个对象的操作，无需递归初始化所有属性，性能更好。
-
-🎯 **观察者模式**
-
-Vue 的响应式系统通过 **观察者模式** 来实现数据与视图的同步更新，简化的流程如下：
-
-- **依赖收集**：当 Vue 组件的视图模板渲染时，它会读取数据对象的属性（例如 `{{ message }}`）。在读取属性时，getter方法会将视图组件与该数据属性建立依赖关系。
-
-![](../imgs/vue/数据绑定1.png)
-
-- **观察者（Watcher）**：每个依赖的数据都会对应一个观察者。观察者的作用是监听数据的变化，一旦数据发生变化，观察者会收到通知，进而触发视图的更新。
+1.  **数据劫持 (Observer)**:
+    - **Vue 2**: 使用 `Object.defineProperty` 劫持各个属性的 `getter` 和 `setter`。
+    - **Vue 3**: 使用 `Proxy` 代理整个对象。
+2.  **依赖收集 (Dep)**: 当渲染函数读取数据时，触发 `getter`，将当前的 Watcher（订阅者）加入到依赖列表中。
+3.  **派发更新 (Watcher)**: 当数据变化时，触发 `setter`，通知依赖列表中的 Watcher 执行回调，从而更新视图。
 
 ![](../imgs/vue/数据绑定2.png)
 
-- **通知视图更新（Notify View Update）**：当数据通过 `setter` 修改时，Vue 会触发相应的观察者，通知相关的视图组件更新。
-
-![](../imgs/vue/数据绑定3.png)
-
-通过这种方式，Vue 可以监控数据的变化，并在数据变化时通知视图更新。
-
 :::
 
-## Vue 模板编译的过程
+## Vue 模板编译原理
 
 ::: details 参考答案
 
-Vue 的模板编译过程是将开发者编写的模板语法（例如 `{{ message }}` 和 `v-bind` 等）转换为 JavaScript 代码的过程。它主要分为三个阶段：**模板解析**、**AST优化** 和 **代码生成**：
+模板编译是将 `template` 字符串转换为 `render` 函数的过程，主要分为三步：
 
-1️⃣ **模板解析**
+1.  **Parse (解析)**: 将模板字符串解析为 **AST (抽象语法树)**。
+2.  **Optimize (优化)**: 遍历 AST，标记 **静态节点** (Static Nodes)。Diff 算法会跳过静态节点，减少比较开销。
+3.  **Generate (生成)**: 将优化后的 AST 转换为可执行的 **Render 函数** 代码字符串。
 
-Vue 使用其解析器将 HTML 模板转换为 **抽象语法树（AST）**。在这个阶段，Vue 会分析模板中的标签、属性和指令，生成一颗树形结构。每个节点表示模板中的一个元素或属性。
+:::
 
-如：
+## Vue 2 vs Vue 3 响应式原理
+
+::: details 参考答案
+
+**Vue 2 (Object.defineProperty)**
+
+- **原理**: 递归遍历对象属性，设置 `getter/setter`。
+- **缺点**:
+  - 无法监听对象属性的新增和删除（需用 `Vue.set`）。
+  - 无法监听数组下标和长度的变化（需重写数组方法）。
+  - 初始化时递归遍历，性能开销大。
+
+**Vue 3 (Proxy)**
+
+- **原理**: 使用 ES6 `Proxy` 代理整个对象。
+- **优点**:
+  - 可以监听属性的新增、删除。
+  - 可以监听数组下标和 length 变化。
+  - **懒代理**: 只有访问嵌套对象时才进行代理，性能更好。
+
+| 特性         | Vue 2 (Object.defineProperty) | Vue 3 (Proxy) |
+| :----------- | :---------------------------- | :------------ |
+| 动态增删属性 | ❌ (需 API)                   | ✅ 支持       |
+| 数组下标修改 | ❌ (需 Hack)                  | ✅ 支持       |
+| 性能         | ⚠️ 初始化递归                 | ✅ 懒代理     |
+| 兼容性       | IE9+                          | 不支持 IE     |
+
+:::
+
+## v-for 为什么要用 key
+
+::: details 参考答案
+
+`key` 是 VNode 的唯一标识。
+
+1.  **准确性 (Diff 算法核心)**: 在 Diff 过程中，Vue 通过 `key` 判断两个节点是否是同一个，从而决定是 **复用** 还是 **销毁重建**。
+2.  **性能优化**: 有 `key` 可以最小化 DOM 操作。例如在列表头部插入一项，有 key 时只需移动 DOM，无 key 时可能需要更新所有后续 DOM。
+3.  **状态维持**: 防止组件状态错乱（如输入框内容不对应）。
+
+:::
+
+## Vue Diff 算法原理
+
+::: details 参考答案
+
+Diff 算法用于比较新旧 VNode，找出最小变化。
+
+**核心策略**:
+
+1.  **同层比较**: 只比较同一层级的节点，不跨层级。
+2.  **深度优先**: 递归比较子节点。
+
+**Vue 2 (双端比较)**:
+
+- 使用 4 个指针：旧头、旧尾、新头、新尾。
+- 通过头头、尾尾、头尾、尾头 4 种方式匹配，尽可能复用节点。
+
+**Vue 3 (快速 Diff)**:
+
+- 预处理：先处理头尾相同的节点。
+- 核心：对剩余的乱序部分，使用 **最长递增子序列 (LIS)** 算法，计算出最小移动路径。
+
+:::
+
+## Vue 3 做了哪些编译优化
+
+::: details 参考答案
+
+Vue 3 在编译阶段做了很多静态分析，以提升运行时性能：
+
+1.  **静态标记 (PatchFlag)**: 编译时给动态节点打上标记（如 `TEXT`, `CLASS`），Diff 时只比较动态内容，跳过静态属性。
+2.  **静态提升 (Static Hoisting)**: 将完全静态的节点提升到渲染函数外，只创建一次，重复使用。
+3.  **事件缓存 (cacheHandlers)**: 缓存事件处理函数，避免每次渲染都重新创建函数导致子组件重新渲染。
+
+:::
+
+## Vue vs React Diff 算法区别
+
+::: details 参考答案
+
+1.  **比较策略**:
+    - **Vue**: 双端比较 (Vue 2) / 快速 Diff (Vue 3)。更倾向于通过移动节点来复用。
+    - **React**: 仅右移策略。如果节点数组中有元素移动，React 会将该元素后的所有元素重新渲染或移动（在 Fiber 架构下有优化，但核心 Diff 思想仍较简单）。
+2.  **响应式粒度**:
+    - **Vue**: 精确到组件级别。数据变化时，只有依赖该数据的组件会重新渲染。
+    - **React**: 递归更新。状态变化时，默认从根组件向下递归更新所有子组件（需配合 `useMemo`, `React.memo` 优化）。
+
+:::
+
+## Vue 异步更新机制 (nextTick)
+
+::: details 参考答案
+
+**原理**:
+
+1.  **异步队列**: Vue 更新 DOM 是异步的。数据变化时，Watcher 不会立即更新视图，而是开启一个队列，将 Watcher 推入（并去重）。
+2.  **批量执行**: 在下一次 Event Loop (微任务或宏任务) 中，清空队列，执行更新。
+
+**nextTick 作用**:
+
+- 因为 DOM 更新是异步的，修改数据后立即获取 DOM 还是旧的。
+- `$nextTick(callback)` 会将回调函数推入同一个微任务队列，确保在 DOM 更新完成后执行。
 
 ```javascript
-< div >
-    <
-    p > {
-        {
-            message
-        }
-    } < /p> <
-button v - on: click = "handleClick" > 点击 < /button> < /
-div >
-```
-
-被解析成的 AST 类似于下面的结构：
-
-```javascript
-{
-    type: 1, // 节点类型：1 表示元素节点
-    tag: 'div', // 元素的标签名
-    children: [ // 子节点（嵌套的 HTML 元素）
-        {
-            type: 1, // 子节点是一个元素节点
-            tag: 'p',
-            children: [{
-                type: 2, // 2 表示插值表达式节点
-                expression: 'message' // 表达式 'message'
-            }]
-        },
-        {
-            type: 1, // 另一个元素节点
-            tag: 'button',
-            events: { // 事件监听
-                click: 'handleClick' // 绑定 click 事件，执行 handleClick 方法
-            },
-            children: [{
-                type: 3, // 文本节点
-                text: '点击' // 按钮文本
-            }]
-        }
-    ]
-}
-```
-
-2️⃣ **AST优化**
-
-Vue 在生成渲染函数前，会对 AST 进行优化。优化的核心目标是标记 **静态节点**，在渲染时，Vue 可以跳过这些静态节点，提升性能。
-
-> **静态节点**指所有的渲染过程中都不变化的内容，比如 `某个div标签内的静态文本`
-
-在 `vue3` 中，如果一个节点及其子树都不依赖于动态数据，那么该节点会被提升到渲染函数外部（静态提升），仅在组件初次渲染时创建。
-
-3️⃣ **代码生成**
-
-生成渲染函数是编译的最终阶段，这个阶段会将优化后的 AST 转换成 JavaScript 渲染函数。
-
-例如，像这样的模板：
-
-```html
-<div id="app">{{ message }}</div>
-```
-
-最终会生成类似这样的渲染函数：
-
-```javascript
-function render() {
-  return createVNode(
-    'div',
-    {
-      id: 'app',
-    },
-    [createTextVNode(this.message)]
-  )
-}
-```
-
-渲染函数的返回值是一个 `虚拟 DOM（VDOM）树` ，Vue 会根据 `虚拟 DOM` 来更新实际的 `DOM` 。由于 `渲染函数` 被 Vue 的响应式系统包裹，当数据发生变化时，渲染函数会被重新执行生成新的虚拟 DOM，因此页面也会实时更新。
-
-:::
-
-## Vue 响应式原理
-
-::: details 参考答案
-
-Vue 的响应式原理在 2.x 和 3.x 中有所不同，分别基于 `Object.defineProperty` 和 `Proxy` 实现。
-
-🎯 **Vue 2.x 的实现 ( `Object.defineProperty` )**
-
-`Object.defineProperty` 支持 IE9 及以上版本，兼容性非常好。它会递归遍历对象，对每个属性单独设置 `getter` 和 `setter` ，但也存在以下局限性：
-
-- **无法监听动态属性增删**
-  Vue 2.x 在新增或删除对象属性时不会触发视图更新，需通过 `Vue.set` 或 `Vue.delete` 手动处理。
-- **数组监听受限**
-  无法直接监听数组索引的修改（如 `arr[0] = 1` ）和 `length` 变化，因此 Vue 2.x 重写了数组的一些方法来解决这一问题。
-- **性能开销较大**
-  需要递归地为每个属性设置 `getter` 和 `setter` ，对深层嵌套的对象和大型数组性能较差。
-- **不支持 Map/Set 等数据结构**
-  只能代理普通对象和数组，不能处理像 `Map` 、 `Set` 等复杂数据结构。
-
-🚀 **Vue 3.x 的实现 ( `Proxy` )**
-
-为了解决 Vue 2.x 中的这些问题，Vue 3.x 采用了 `Proxy` ，带来了更优的性能和更全面的响应式支持：
-
-- **动态属性增删支持**
-  `Proxy` 可以直接代理整个对象，因此可以监听属性的动态增删，不再需要手动操作。
-- **完美支持数组和索引修改**
-  `Proxy` 能够监听数组索引的修改（如 `arr[0] = 1` ）以及 `length` 变化，避免了 Vue 2.x 中的重写数组方法。
-- **性能更优**
-  `Proxy` 采用懒代理模式，只有在访问属性时才会递归代理子对象，避免了递归遍历的性能开销。
-- **支持更多数据结构**
-  除了普通对象和数组， `Proxy` 还可以代理 `Map` 、 `Set` 等数据结构，提供了更强大的响应式能力。
-
-| 特性         | `Object.defineProperty` <br/>（Vue 2）    | `Proxy` <br/>（Vue 3）          |
-| ------------ | ----------------------------------------- | ------------------------------- |
-| 动态属性增删 | ❌ 不支持（需 `Vue.set` / `Vue.delete` ） | ✅ 支持                         |
-| 数组索引修改 | ❌ 需重写方法（如 `push` ）               | ✅ 直接监听                     |
-| 性能         | ⚠️ 递归初始化所有属性，性能较差           | ✅ 惰性代理，按需触发，性能更优 |
-| 数据结构支持 | ❌ 仅普通对象/数组                        | ✅ 支持 `Map` 、 `Set` 等       |
-| 兼容性       | ✅ 支持 IE9+                              | ❌ 不支持 IE                    |
-| 实现复杂度   | ⚠️ 需递归遍历对象，代码冗余               | ✅ 统一拦截，代码简洁           |
-
-:::
-
-## 为何 v-for 需要使用 key
-
-::: details 参考答案
-
-在 Vue.js 中，使用 `v-for` 渲染列表时，添加 key 属性是一个重要的最佳实践。
-
-- **提高性能**：当 Vue 更新视图时，它会根据 `key` 来识别哪些元素被修改、添加或移除。如果没有 `key`，Vue 会依赖其默认的算法（基于元素的位置）来比较元素，这样可能导致不必要的 DOM 操作。使用 `key` 后，Vue 能精确地找到每个项，从而减少不必要的 DOM 重排和重绘，提升性能。
-- **保持组件状态**：如果渲染的是一个组件（而不是普通的 DOM 元素），使用 `key` 可以确保组件在渲染更新时保持正确的状态。例如，如果列表中有表单输入框，每个输入框都有自己的状态，使用 `key` 可以确保输入框状态不会因列表排序或元素移除而丢失。
-- **避免渲染错误**：key 的存在可以帮助 Vue 确保在列表更新时，元素的顺序和内容保持稳定，避免出现不稳定的渲染或顺序错乱。
-
-:::
-
-## Vue diff 算法的过程
-
-::: details 参考答案
-
-Vue的diff算法执行，依赖数据的的响应式系统：当数据发生改变时， `setter` 方法会让调用 `Dep.notify` 通知所有订阅者 `Watcher` ，订阅者会重新执行渲染函数，渲染函数内部通过diff 算法用于比较新旧虚拟 DOM 树的差异，并计算出最小的更新操作，最终更新相应的视图。
-
-![](../imgs/vue/render.png)
-
-diff 算法的核心算法流程如下：
-
-- 节点对比
-  如果新旧节点类型相同，则继续比较它们的属性。如果节点类型不同（如元素和文本节点不同），则直接**替换**整个节点。
-- 属性更新：
-  如果节点类型相同，接下来检查节点的属性。对于不同的属性值进行更新，移除旧属性，添加新属性。
-- 子节点比对：
-  对于有子节点的元素（如 div），Vue 会使用不同的策略来优化子节点更新：
-  🎯 文本节点的更新：如果新旧子节点都是文本节点，直接更新文本内容。
-  🎯 数组类型子节点的比对：如果新旧子节点都是数组，Vue 会通过 `LIS 算法` 来优化节点的重新排列，避免过多的 DOM 操作。
-
-![](../imgs/vue/diff.png)
-
-:::
-
-## Vue3 diff 算法做了哪些优化？
-
-::: details 参考答案
-
-- 静态标记与动态节点的区分
-  Vue3引入了 `静态标记（Static Marking）` 机制，通过在模板编译阶段为静态节点添加标记，避免了对这些节点的重复比较。这使得Vue3能够更高效地处理静态内容，减少不必要的DOM操作。
-- 双端对比策略
-  Vue3的Diff算法采用了双端对比策略，即从新旧节点的头部和尾部同时开始比较，快速定位无序部分。这种策略显著减少了全量对比的复杂度，提升了性能。
-- 最长递增子序列（LIS）优化
-  在处理节点更新时，Vue3利用最长递增子序列（LIS）算法来优化对比流程。通过找到新旧节点之间的最长递增子序列，Vue3可以减少不必要的DOM操作，从而提高更新效率。
-- 事件缓存与静态提升
-  事件缓存：Vue3将事件缓存为静态节点，避免每次渲染时重新计算事件处理逻辑，从而减少性能开销。
-  静态提升：对于不参与更新的元素，Vue3将其提升为静态节点，仅在首次创建时进行处理，后续不再重复计算。
-- 类型检查与属性对比
-  Vue3在Diff算法中增加了类型检查和属性对比功能。如果节点类型不同，则直接替换；如果类型相同，则进一步对比节点的属性，生成更新操作。
-- 动态插槽的优化
-  Vue3对动态插槽进行了优化，通过动态节点的类型化处理，进一步提升了Diff算法的效率
-
-:::
-
-## Vue diff 算法和 React diff 算法的区别
-
-::: details
-
-Vue 和 React 的 Diff 算法均基于虚拟 DOM，但在 `实现策略` 、 `优化手段` 和 `设计哲学` 上存在显著差异：
-
-**1. 核心算法策略对比**
-
-| **维度**     | **React**                      | **Vue 2/3**                          |
-| ------------ | ------------------------------ | ------------------------------------ |
-| **遍历方式** | 单向递归（同层顺序对比）       | 双端对比（头尾指针优化）             |
-| **节点复用** | 类型相同则复用，否则销毁重建   | 类型相同则尝试复用，优先移动而非重建 |
-| **静态优化** | 需手动优化（如 `React.memo` ） | 编译阶段自动标记静态节点             |
-| **更新粒度** | 组件级更新（默认）             | 组件级 + 块级（Vue3 Fragments）      |
-
-**2. 列表 Diff 实现细节**
-
-**a. React 的索引对比策略**
-
-- **无 key 时**：按索引顺序对比，可能导致无效更新
-
-```jsx
-// 旧列表：[A, B, C]
-// 新列表：[D, A, B, C]（插入头部）
-// React 对比结果：更新索引 0-3，性能低下
-```
-
-- **有 key 时**：通过 key 匹配节点，减少移动操作
-
-```jsx
-// key 匹配后，仅插入 D，其他节点不更新
-```
-
-**b. Vue 的双端对比策略**
-
-分四步优化对比效率（Vue2 核心逻辑，Vue3 优化为最长递增子序列）：
-
-1. **头头对比**：新旧头指针节点相同则复用，指针后移
-2. **尾尾对比**：新旧尾指针节点相同则复用，指针前移
-3. **头尾交叉对比**：旧头 vs 新尾，旧尾 vs 新头
-4. **中间乱序对比**：建立 key-index 映射表，复用可匹配节点
-
-```js
-// 旧列表：[A, B, C, D]
-// 新列表：[D, A, B, C]
-// Vue 通过步骤3头尾对比，仅移动 D 到头部
-```
-
-**3. 静态优化机制**
-
-**a. Vue 的编译时优化**
-
-- **静态节点标记**：
-  模板中的静态节点（无响应式绑定）会被编译为常量，跳过 Diff
-
-```html
-<!-- 编译前 -->
-<div>Hello Vue</div>
-
-<!-- 编译后 -->
-_hoisted_1 = createVNode("div", null, "Hello Vue")
-```
-
-- **Block Tree（Vue3）**：
-  动态节点按区块（Block）组织，Diff 时仅对比动态部分
-
-**b. React 的运行时优化**
-
-- **手动控制更新**：
-  需通过 `React.memo` 、 `shouldComponentUpdate` 或 `useMemo` 避免无效渲染
-
-```jsx
-const MemoComp = React.memo(() => <div>Static Content</div>)
-```
-
-**4. 响应式更新触发**
-
-| **框架** | **机制**                   | **Diff 触发条件**                |
-| -------- | -------------------------- | -------------------------------- |
-| React    | 状态变化触发组件重新渲染   | 父组件渲染 → 子组件默认递归 Diff |
-| Vue      | 响应式数据变更触发组件更新 | 依赖收集 → 仅受影响组件触发 Diff |
-
-```javascript
-// Vue：只有 data.value 变化才会触发更新
-const vm = new Vue({
-  data: {
-    value: 1,
-  },
+this.message = 'new value'
+console.log(this.$el.textContent) // 旧值
+this.$nextTick(() => {
+  console.log(this.$el.textContent) // 新值
 })
-
-// React：需显式调用 setState
-const [value, setValue] = useState(1)
 ```
-
-**5. 设计哲学差异**
-
-| **维度**     | **React**                  | **Vue**                    |
-| ------------ | -------------------------- | -------------------------- |
-| **控制粒度** | 组件级控制（开发者主导）   | 细粒度依赖追踪（框架主导） |
-| **优化方向** | 运行时优化（Fiber 调度）   | 编译时优化（模板静态分析） |
-| **适用场景** | 大型动态应用（需精细控制） | 中小型应用（快速开发）     |
 
 :::
 
-## 简述 Vue 组件异步更新的过程
+## Keep-alive 原理
 
-参考答案
+::: details 参考答案
 
-::: details
+`keep-alive` 是 Vue 的内置组件，用于缓存组件实例。
 
-Vue 组件的异步更新过程是其响应式系统的核心机制，主要通过 **批量更新** 和 **事件循环** 实现高效渲染，具体流程如下：
+1.  **缓存管理**: 内部维护一个 `Map` (LRU 算法) 存储已渲染的组件实例 (VNode)。
+2.  **渲染逻辑**:
+    - 首次渲染：将组件实例存入 Map。
+    - 再次渲染：从 Map 中取出实例，直接复用，不走 mount 流程。
+3.  **生命周期**:
+    - `activated`: 组件被激活（从缓存取出）时触发。
+    - `deactivated`: 组件被停用（放入缓存）时触发。
 
-**一、触发阶段：依赖收集与变更通知**
+:::
 
-1. **数据变更**
-   当组件内响应式数据（如 `data` 、 `props` ）被修改时，触发 `setter` 通知依赖（Watcher）。
+## Ref 为什么需要 .value
 
-2. **Watcher 入队**
-   所有关联的 Watcher 会被推入 **异步更新队列**（ `queueWatcher` ），Vue 通过 `id` 去重，确保每个 Watcher 仅入队一次，避免重复更新。
+::: details 参考答案
 
-**二、调度阶段：异步队列处理** 3. **异步执行**
-Vue 将队列刷新任务放入微任务队列（优先 `Promise.then` ，降级 `setImmediate` 或 `setTimeout` ），等待当前同步代码执行完毕后处理。
+1.  **基本类型限制**: JS 的 `Proxy` 或 `Object.defineProperty` 只能代理 **对象**，无法拦截基本数据类型（String, Number 等）的读写。
+2.  **包装对象**: 为了让基本类型也能响应式，Vue 将其封装在一个对象中，通常命名为 `value` 属性。
+3.  **统一性**: `ref` 也可以包裹对象，此时 `.value` 指向该对象的 Proxy 代理。
+
+:::
+
+## Vue.use() 原理
+
+::: details 参考答案
+
+`Vue.use()` 用于安装 Vue 插件。
+
+**原理流程**:
+
+1.  **检查缓存**: 插件如果已经安装过，直接返回，避免重复安装。
+2.  **处理参数**: 将 `Vue` 构造函数作为第一个参数，和其他参数合并。
+3.  **执行安装**:
+    - 如果插件是 **对象**，调用它的 `install` 方法。
+    - 如果插件是 **函数**，直接执行该函数。
+4.  **记录缓存**: 将插件标记为已安装。
 
 ```javascript
-// 伪代码：nextTick 实现
-const timerFunc = () => {
-  if (Promise) {
-    Promise.resolve().then(flushQueue)
-  } else if (MutationObserver) {
-    /* 使用 MO */
-  } else {
-    setTimeout(flushQueue, 0)
+// 核心逻辑简写
+Vue.use = function (plugin, ...args) {
+  if (plugin.installed) return
+  const newArgs = [this, ...args]
+  if (typeof plugin.install === 'function') {
+    plugin.install.apply(plugin, newArgs)
+  } else if (typeof plugin === 'function') {
+    plugin.apply(null, newArgs)
   }
-}
-```
-
-4. **合并更新**
-   同一事件循环中的多次数据变更会被合并为一次组件更新（如循环中修改数据 100 次，仅触发 1 次渲染）。
-
-**三、执行阶段：虚拟 DOM 与 DOM 更新** 5. **组件重新渲染**
-执行队列中的 Watcher 更新函数，触发组件的 `render` 生成新虚拟 DOM（VNode）。
-
-6. **Diff 与 Patch**
-   通过 **Diff 算法** 对比新旧 VNode，计算出最小化 DOM 操作，批量更新真实 DOM。
-
-**四、核心优势**
-
-- **性能优化**：避免频繁 DOM 操作，减少重排/重绘。
-- **数据一致性**：确保在同一事件循环中的所有数据变更后，视图一次性更新到最终状态。
-- **开发者友好**：通过 `Vue.nextTick(callback)` 在 DOM 更新后执行逻辑。
-
-```javascript
-export default {
-  data() {
-    return {
-      count: 0,
-    }
-  },
-  methods: {
-    handleClick() {
-      this.count++ // Watcher 入队
-      this.count++ // 去重，仍只一个 Watcher
-      this.$nextTick(() => {
-        console.log('DOM已更新:', this.$el.textContent)
-      })
-    },
-  },
-}
-```
-
-点击事件中两次修改 `count` ，但 DOM 仅更新一次， `nextTick` 回调能获取最新 DOM 状态。
-
-**总结流程图**
-
-```
-数据变更 → Watcher 入队 → 微任务队列 → 批量执行 Watcher → 生成 VNode → Diff/Patch → DOM 更新
-```
-
-通过异步更新机制，Vue 在保证性能的同时，实现了数据驱动视图的高效响应。
-
-:::
-
-参考资料
-
-::: details
-
-- https://juejin.cn/post/7054488305659805727
-
-:::
-
-## Vue 组件是如何渲染和更新的
-
-::: details 参考答案
-
-Vue 组件的渲染和更新过程涉及从 `模板编译` 到 `虚拟 DOM` 的**构建**、**更新**和最终的实际 DOM 更新。下面是 Vue 组件渲染和更新的主要步骤：
-
-1️⃣ 组件渲染过程
-Vue 的组件的渲染过程核心是其[模板编译](./vue-inner/#vue-模板编译的过程)过程，大致流程如下：
-首先，Vue会通过其响应式系统完成组件的 `data、computed 和 props` 等数据和模板的绑定，这个过程Vue 会利用 `Object.defineProperty（Vue2）` 或 `Proxy（Vue3）` 来追踪数据的依赖，保证数据变化时，视图能够重新渲染。随后，Vue会将模板编译成渲染函数，这个渲染函数会在每次更新时被调用，从而生成虚拟 DOM。
-最终，虚拟DOM被渲染成真实的 DOM 并插入到页面中，组件渲染完成，组件渲染的过程中，Vue 会依次触发相关的生命周期钩子。
-
-2️⃣ 组件更新过程
-当组件的状态（如 data、props、computed）发生变化时，响应式数据的 `setter` 方法会让调用Dep.notify通知所有 `订阅者Watcher` ，重新执行渲染函数触发更新。
-
-![](../imgs/vue/模板编译.png)
-
-渲染函数在执行时，会使用 diff 算法（例如：双端对比、静态标记优化等）生成新的虚拟DOM。计算出需要更新的部分后（插入、删除或更新 DOM），然后对实际 DOM 进行最小化的更新。在组件更新的过程中，Vue 会依次触发beforeUpdate、updated等相关的生命周期钩子。
-
-:::
-
-## 如何实现 keep-alive 缓存机制
-
-::: details 参考答案
-
-`keep-alive` 是 Vue 提供的一个内置组件，用来缓存组件的状态，避免在切换组件时重新渲染和销毁，从而提高性能。
-
-```vue
-<template>
-  <keep-alive>
-    <component :is="currentComponent" />
-  </keep-alive>
-</template>
-```
-
-Vue 3 的 keep-alive 的缓存机制原理如下：
-
-- 缓存池：keep-alive 内部使用一个 Map 存储已渲染的组件实例，键通常是组件的 key（或 name）。
-- 激活与挂起：如果组件切换时已经缓存，直接复用缓存的组件实例；如果组件未缓存，则渲染并缓存新的组件实例。
-  此外，keep-alive 还会激活特殊的钩子函数：
-- 当组件被缓存时，会触发 deactivated 钩子。
-- 当组件从缓存中恢复时，会触发 activated 钩子。
-
-一个简单的实现如下：
-
-```javascript
-const KeepAliveImpl = {
-  name: 'KeepAlive',
-  // 已缓存的组件实例。
-  _cache: new Map(),
-  _activeCache: new Map(),
-
-  render() {
-    const vnode = this.$slots.default()[0] // 获取动态组件的 vnode
-    const key = vnode.key || vnode.type.name
-
-    if (this._cache.has(key)) {
-      const cachedVnode = this._cache.get(key)
-      this._activeCache.set(key, cachedVnode)
-      return cachedVnode
-    } else {
-      return vnode // 未缓存，直接渲染
-    }
-  },
-
-  mounted() {
-    const key = this.$vnode.key
-    if (!this._cache.has(key)) {
-      this._cache.set(key, this.$vnode)
-    }
-  },
-
-  beforeDestroy() {
-    const key = this.$vnode.key
-    this._cache.delete(key)
-  },
+  plugin.installed = true
 }
 ```
 
 :::
 
-## 为何 ref 需要 value 属性
+## 组件 data 为什么必须是函数
 
 ::: details 参考答案
 
-Vue 3 中， `ref` 之所以需要 `.value` 属性，主要是因为 Vue 3 使用 `Proxy` 实现响应式。 `Proxy` 对对象或数组的每个属性进行深度代理，因此可以追踪嵌套属性的变化。而 `Proxy` 无法直接处理基本数据类型（如 `number` 、 `string` 、 `boolean` ），这使得 `reactive` 无法用于基本数据类型。为了实现基本数据类型的响应式，Vue 设计了 `ref` ，它将基本数据类型封装为一个包含 `value` 属性的对象，并通过 `getter` 和 `setter` 进行依赖追踪和更新。当访问或修改 `ref.value` 时，Vue 会触发依赖更新。
+1.  **复用性**: 组件是可复用的。如果 `data` 是一个对象，对象是引用类型，那么所有组件实例将 **共享** 同一个 data 对象。修改一个实例的数据会影响所有实例。
+2.  **隔离性**: 将 `data` 定义为函数，每次创建组件实例时，都会调用该函数返回一个新的 data 对象副本。这样每个实例都有自己 **独立** 的数据作用域，互不干扰。
+
+> **根实例** (new Vue) 的 data 可以是对象，因为根实例通常只有一个，不需要复用。
+
+:::
+
+## Computed 和 Watch 的原理区别
+
+::: details 参考答案
+
+它们本质都是 `Watcher`，但类型和行为不同。
+
+**Computed (计算属性)**:
+
+1.  **Lazy Watcher**: 只有在被读取时才会计算（懒执行）。
+2.  **缓存**: 内部有一个 `dirty` 标志。依赖变化时，仅将 `dirty` 设为 `true`，不会立即计算。下次读取时，若 `dirty` 为 true 才重新计算，否则直接返回缓存值。
+3.  **场景**: 适合由多个值衍生出一个新值（一对多）。
+
+**Watch (侦听器)**:
+
+1.  **User Watcher**: 数据变化时，**立即** 执行回调。
+2.  **无缓存**: 每次变化都会触发。
+3.  **场景**: 适合执行异步操作或开销较大的副作用（多对一）。
+
+:::
+
+## Scoped CSS 的实现原理
+
+::: details 参考答案
+
+Vue 通过 **PostCSS** 实现组件样式隔离。
+
+1.  **添加属性**: 给组件内的 DOM 元素添加一个唯一的自定义属性 (如 `data-v-xxxx`)。
+2.  **转换选择器**: 编译 CSS 时，给选择器末尾加上该属性选择器。
+
+```css
+/* 源码 */
+.example {
+  color: red;
+}
+
+/* 编译后 */
+.example[data-v-f3f3eg9] {
+  color: red;
+}
+```
+
+这样，样式就只会应用到当前组件带有该属性的元素上，实现了隔离。
+
+:::
+
+## Vue Router 的原理 (Hash vs History)
+
+::: details 参考答案
+
+Vue Router 核心是监听 URL 变化并渲染对应的组件，且 **不刷新页面**。
+
+**1. Hash 模式 (默认)**:
+
+- **URL**: `http://yoursite.com/#/home`
+- **原理**: 基于 `window.onhashchange` 事件。
+- **特点**: `#` 后面的内容不会发送给服务器，兼容性好，无需后端配置。
+
+**2. History 模式**:
+
+- **URL**: `http://yoursite.com/home`
+- **原理**: 基于 HTML5 `history.pushState` 和 `history.replaceState` 修改 URL，通过 `window.onpopstate` 监听浏览器前进/后退。
+- **特点**: URL 美观。但需要 **后端配置** 支持 (如 Nginx 将所有 404 请求指向 `index.html`)，否则刷新页面会报 404 错误。
 
 :::
