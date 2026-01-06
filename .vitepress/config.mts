@@ -1,7 +1,34 @@
 import { defineConfig } from 'vitepress'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  vite: {
+    plugins: [
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'logo/apple-touch-icon.png', 'logo/favicon-32x32.png'],
+        manifest: {
+          name: '前端面试派',
+          short_name: '面试派',
+          description: '系统专业的前端面试导航',
+          theme_color: '#ffffff',
+          icons: [
+            {
+              src: '/logo/android-chrome-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+            },
+            {
+              src: '/logo/android-chrome-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+            },
+          ],
+        },
+      }),
+    ],
+  },
   lang: 'zh-CN',
   title: '前端面试派',
   description: '系统专业的前端面试导航，大厂面试规范，开源免费',
@@ -12,7 +39,7 @@ export default defineConfig({
       {
         name: 'keywords',
         content:
-          '前端, 面试, 前端面试, 面试题, 刷题, 面试流程, 前端面试流程, 面试准备, 简历, 前端简历, 开源, 免费, Javascript, Typescript, React, Vue, webpack, vite, HTTP, 算法',
+          '前端, 面试, 前端面试, 面试题, 刷题, 面试流程, 前端面试流程, 面试准备, 简历, 前端简历, 开源, 免费, Javascript, Typescript, React, Vue, webpack, vite, HTTP',
       },
     ],
   ],

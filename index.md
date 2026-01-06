@@ -9,7 +9,7 @@ hero:
   actions:
     - theme: brand
       text: 刷题
-      link: /docs/written-exam/algorithm.html
+      link: /docs/first-exam/ComputerBase.html
     - theme: alt
       text: 面试技巧
       link: /docs/hr-exam/behavioural-test.html
