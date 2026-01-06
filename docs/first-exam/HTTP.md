@@ -8,18 +8,6 @@ HTTP 和 Ajax 是前后端沟通的桥梁，面试重点考察，无论工作经
 
 **三次握手 (建立连接)**
 
-```mermaid
-sequenceDiagram
-    participant C as 客户端
-    participant S as 服务端
-    Note over C,S: 建立连接 (三次握手)
-    C->>S: SYN=1 (Seq=x)
-    S->>C: SYN=1, ACK=1 (Seq=y, Ack=x+1)
-    C->>S: ACK=1 (Seq=x+1, Ack=y+1)
-    Note right of C: ESTABLISHED
-    Note left of S: ESTABLISHED
-```
-
 1.  **SYN**: 客户端发送 SYN=1，进入 SYN_SEND 状态。
 2.  **SYN + ACK**: 服务端收到 SYN，发送 SYN=1, ACK=1，进入 SYN_RECV 状态。
 3.  **ACK**: 客户端收到 SYN+ACK，发送 ACK=1，进入 ESTABLISHED 状态。服务端收到后也进入 ESTABLISHED。
@@ -30,24 +18,6 @@ sequenceDiagram
 > A: 好的，我连上了 (ACK)
 
 **四次挥手 (断开连接)**
-
-```mermaid
-sequenceDiagram
-    participant C as 客户端
-    participant S as 服务端
-    Note over C,S: 断开连接 (四次挥手)
-    C->>S: FIN=1
-    S->>C: ACK=1
-    Note right of S: CLOSE_WAIT
-    Note left of C: FIN_WAIT_2
-    S-->>C: ... 传输剩余数据 ...
-    S->>S: 数据发完
-    S->>C: FIN=1
-    C->>S: ACK=1
-    Note left of C: TIME_WAIT (2MSL)
-    Note right of S: CLOSED
-    Note left of C: CLOSED
-```
 
 1.  **FIN**: 客户端发送 FIN=1，进入 FIN_WAIT_1。
 2.  **ACK**: 服务端收到 FIN，发送 ACK=1，进入 CLOSE_WAIT。客户端收到后进入 FIN_WAIT_2。
@@ -167,29 +137,17 @@ sequenceDiagram
 
 **加密流程 (混合加密)**:
 
-```mermaid
-sequenceDiagram
-    participant C as 客户端
-    participant S as 服务端
-    C->>S: Client Hello (支持的加密套件)
-    S->>C: Server Hello (选定的加密套件 + 数字证书)
-    C->>C: 验证证书 (CA 公钥解密证书签名)
-    C->>S: PubKey(Pre-Master Secret) (用服务器公钥加密随机数)
-    S->>S: PrivKey(Pre-Master Secret) (用服务器私钥解密)
-    Note over C,S: 双方利用 Pre-Master Secret 生成 Session Key
-    C->>S: Encrypted Handshake Message
-    S->>C: Encrypted Handshake Message
-    Note over C,S: 握手结束，后续使用 Session Key 对称加密传输
-```
-
-1.  **非对称加密 (握手阶段)**:
+1.  **握手阶段 (非对称加密为主)**:
     - 服务端发送**证书** (包含公钥) 给客户端。
     - 客户端验证证书合法性。
-    - 客户端生成一个随机数 (Pre-master secret)，用**公钥**加密发给服务端。
-    - 服务端用**私钥**解密，拿到随机数。
-2.  **对称加密 (传输阶段)**:
+    - 客户端生成随机数 (Pre-master secret)，用**服务器公钥**加密发给服务端。
+    - 服务端用**服务器私钥**解密，拿到随机数。
+2.  **密钥派生**:
     - 双方利用这个随机数生成**会话密钥 (Session Key)**。
-    - 后续所有数据传输都用这个会话密钥进行**对称加密** (AES)，因为对称加密速度快。
+3.  **传输阶段 (对称加密)**:
+    - 后续所有数据传输都用会话密钥做**对称加密** (如 AES)，因为对称加密速度快。
+4.  **完整性与身份**:
+    - 通过证书链校验确认“你连的是谁”，通过 MAC/AEAD 等机制保证数据未被篡改。
 
 :::
 
@@ -198,21 +156,6 @@ sequenceDiagram
 ::: details 参考答案
 
 浏览器每次发起请求，会先在浏览器缓存中查找结果以及缓存标识。
-
-```mermaid
-graph TD
-    A[发起请求] --> B{有缓存?}
-    B -- No --> H[向服务器请求]
-    B -- Yes --> C{强缓存有效?<br>(Cache-Control/Expires)}
-    C -- Yes (未过期) --> D[读取本地缓存<br>(200 OK from cache)]
-    C -- No (已过期) --> E{有协商缓存标识?<br>(Etag/Last-Modified)}
-    E -- No --> H
-    E -- Yes --> F[携带 If-None-Match<br>If-Modified-Since 请求]
-    F --> G{服务器判断资源变了吗?}
-    G -- No (没变) --> I[返回 304 Not Modified<br>(更新缓存有效期)]
-    G -- Yes (变了) --> H
-    H --> J[返回 200 OK + 新资源 + 新缓存标识]
-```
 
 **1. 强缓存 (本地缓存)**
 如果不失效，直接使用本地缓存，**不发请求** (状态码 200，显示 `from memory/disk cache`)。
@@ -224,7 +167,7 @@ graph TD
 - **Expires** (HTTP/1.0): 绝对时间，受客户端时间影响，已过时。
 
 **2. 协商缓存 (弱缓存)**
-强缓存失效后，浏览器发送请求，带上缓存标识，问服务器文件变没变。
+强缓存失效后，浏览器会“带标识去问一次服务器”，资源没变就直接用本地的。
 
 - **ETag / If-None-Match** (优先级高):
   - 服务器生成的文件指纹 (Hash)。
@@ -232,6 +175,13 @@ graph TD
 - **Last-Modified / If-Modified-Since**:
   - 文件的最后修改时间。
   - 精度只有秒级，可能不准确。
+
+**面试时可以按这个决策顺序回答**:
+
+1.  先看“有没有缓存”；没有就直接请求，返回 `200`。
+2.  有缓存先看强缓存是否过期（`Cache-Control/Expires`）；没过期就直接用本地，不发请求。
+3.  强缓存过期再走协商缓存：带上 `If-None-Match` 或 `If-Modified-Since` 去问。
+4.  服务器判断没变返回 `304`；变了返回 `200` + 新资源 + 新标识。
 
 :::
 
@@ -396,27 +346,6 @@ axios
 
 这是一个极其经典的综合题，建议分阶段回答：
 
-```mermaid
-graph TD
-    A[输入 URL] --> B[DNS 解析<br>(获取 IP)]
-    B --> C[TCP 三次握手<br>(建立连接)]
-    C --> D[发送 HTTP 请求]
-    D --> E[服务器处理<br>(Nginx -> 后端 -> 数据库)]
-    E --> F[浏览器下载响应<br>(HTML)]
-    F --> G[浏览器渲染]
-    G --> H[TCP 四次挥手<br>(断开连接)]
-
-    subgraph G [浏览器渲染流程]
-    G1[解析 HTML -> DOM 树]
-    G2[解析 CSS -> CSSOM 树]
-    G3[合并 -> Render 树]
-    G4[Layout 布局]
-    G5[Paint 绘制]
-    G6[Composite 合成]
-    G1 --> G2 --> G3 --> G4 --> G5 --> G6
-    end
-```
-
 1.  **URL 解析**: 检查 URL 合法性，判断是搜索还是网址。
 2.  **DNS 解析**: 域名 -> IP 地址 (浏览器缓存 -> 系统缓存 -> 路由器 -> DNS 服务器)。
 3.  **TCP 连接**: 三次握手。
@@ -425,10 +354,10 @@ graph TD
 6.  **浏览器渲染**:
     - 解析 HTML 生成 **DOM 树**。
     - 解析 CSS 生成 **CSSOM 树**。
-    - 合并生成 **Render 树**。
-    - **布局 (Layout/Reflow)**: 计算位置大小。
-    - **绘制 (Paint)**: 像素绘制。
-    - **合成 (Composite)**: GPU 合成层。
+    - 合并生成 **Render 树**（只包含可见节点 + 需要渲染的样式）。
+    - **布局 (Layout/Reflow)**: 计算几何信息（位置、尺寸）。
+    - **绘制 (Paint)**: 把边框、文字、颜色等绘制成位图。
+    - **合成 (Composite)**: 分层后交给 GPU 合成，得到最终画面。
 7.  **断开连接**: 四次挥手。
 
 :::
