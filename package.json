@@ -9,8 +9,10 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
+    "mermaid": "^11.12.2",
     "prettier": "^3.4.2",
     "vite-plugin-pwa": "^1.2.0",
-    "vitepress": "^1.5.0"
+    "vitepress": "^1.5.0",
+    "vitepress-plugin-mermaid": "^2.0.17"
   }
 }

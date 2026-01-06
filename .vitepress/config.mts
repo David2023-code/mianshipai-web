@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitepress'
 import { VitePWA } from 'vite-plugin-pwa'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
+export default withMermaid({
   vite: {
     plugins: [
       VitePWA({
