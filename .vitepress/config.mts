@@ -101,6 +101,7 @@ export default withMermaid({
           { text: 'React 原理', link: '/docs/second-exam/react-inner.md' },
           { text: '前端工程化', link: '/docs/second-exam/engineering.md' },
           { text: 'Nodejs', link: '/docs/second-exam/nodejs.md' },
+          { text: '性能优化', link: '/docs/second-exam/performance.md' },
         ],
       },
       {
