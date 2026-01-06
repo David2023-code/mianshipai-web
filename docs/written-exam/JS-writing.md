@@ -4,97 +4,46 @@
 
 ## 手写深拷贝
 
-考虑循环引用
-
 ::: details 参考答案
 
-简单的深拷贝：
+最常用的精简版 (面试够用)：
 
 ```js
-function cloneDeep(source, hash = new WeakMap()) {
-  if (!isObject(source)) return source
-  if (hash.has(source)) return hash.get(source)
+function cloneDeep(obj, map = new WeakMap()) {
+  if (typeof obj !== 'object' || obj === null) return obj
+  if (map.has(obj)) return map.get(obj) // 解决循环引用
 
-  var target = Array.isArray(source) ? [] : {}
-  hash.set(source, target)
+  const target = Array.isArray(obj) ? [] : {}
+  map.set(obj, target)
 
-  for (var key in source) {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      if (isObject(source[key])) {
-        target[key] = cloneDeep(source[key], hash)
-      } else {
-        target[key] = source[key]
-      }
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      target[key] = cloneDeep(obj[key], map)
     }
   }
   return target
 }
 ```
 
-考虑更多比如爆栈的情况：
-
-```js
-function cloneDeep(x) {
-  const root = {}
-
-  const loopList = [
-    {
-      parent: root,
-      key: undefined,
-      data: x,
-    },
-  ]
-
-  while (loopList.length) {
-    const node = loopList.pop()
-    const parent = node.parent
-    const key = node.key
-    const data = node.data
-
-    let res = parent
-    if (typeof key !== 'undefined') {
-      res = parent[key] = {}
-    }
-
-    for (let k in data) {
-      if (data.hasOwnProperty(k)) {
-        if (typeof data[k] === 'object') {
-          loopList.push({
-            parent: res,
-            key: k,
-            data: data[k],
-          })
-        } else {
-          res[k] = data[k]
-        }
-      }
-    }
-  }
-
-  return root
-}
-```
-
-参考阅读：
-
-- [深拷贝的终极探索（99%的人都不知道）](https://segmentfault.com/a/1190000016672263)
-  :::
+:::
 
 ## 手写 getType 函数
-
-获取详细的变量类型
 
 ::: details 参考答案
 
 ```js
-function getType(data) {
-  // 获取到 "[object Type]"，其中 Type 是 Null、Undefined、Array、Function、Error、Boolean、Number、String、Date、RegExp 等。
-  const originType = Object.prototype.toString.call(data)
-  // 可以直接截取第8位和倒数第一位，这样就获得了 Null、Undefined、Array、Function、Error、Boolean、Number、String、Date、RegExp 等
-  const type = originType.slice(8, -1)
-  // 再转小写，得到 null、undefined、array、function 等
-  return type.toLowerCase()
+function getType(value) {
+  // 1. 调用 Object.prototype.toString
+  // 2. 截取 "Object " 后面的部分 (如 "Array]")
+  // 3. 去掉最后的 "]"
+  // 4. 转小写
+  return Object.prototype.toString.call(value).slice(8, -1).toLowerCase()
 }
+
+// 示例
+getType(1) // 'number'
+getType([]) // 'array'
+getType(null) // 'null'
 ```
 
 :::
@@ -167,121 +116,38 @@ class ModalMenu extends BaseMenu {
 ::: details 参考答案
 
 ```js
-function debounce(func, wait, immediate) {
-  var timeout, result
-
-  var debounced = function () {
-    var context = this
-    var args = arguments
-
-    if (timeout) clearTimeout(timeout)
-    if (immediate) {
-      // 如果已经执行过，不再执行
-      var callNow = !timeout
-      timeout = setTimeout(function () {
-        timeout = null
-      }, wait)
-      if (callNow) result = func.apply(context, args)
-    } else {
-      timeout = setTimeout(function () {
-        func.apply(context, args)
-      }, wait)
-    }
-    return result
+// 场景：搜索框输入、窗口 Resize
+function debounce(fn, delay = 500) {
+  let timer = null
+  return function (...args) {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => {
+      fn.apply(this, args) // 注意绑定 this 和 args
+      timer = null
+    }, delay)
   }
-
-  debounced.cancel = function () {
-    clearTimeout(timeout)
-    timeout = null
-  }
-
-  return debounced
 }
 ```
 
-参考阅读：
+:::
 
-- [JavaScript 专题之跟着 underscore 学防抖](https://github.com/mqyqingfeng/Blog/issues/22)
-  :::
-
-## 手写截流 Throttle
+## 手写节流 Throttle
 
 ::: details 参考答案
 
 ```js
-function throttle(func, wait, options) {
-  var timeout, context, args, result
-  var previous = 0
-  if (!options) options = {}
-
-  var later = function () {
-    previous = options.leading === false ? 0 : new Date().getTime()
-    timeout = null
-    func.apply(context, args)
-    if (!timeout) context = args = null
+// 场景：滚动加载、高频点击
+function throttle(fn, delay = 100) {
+  let timer = null
+  return function (...args) {
+    if (timer) return // 如果定时器还在，直接返回
+    timer = setTimeout(() => {
+      fn.apply(this, args)
+      timer = null // 执行完清空定时器
+    }, delay)
   }
-
-  var throttled = function () {
-    var now = new Date().getTime()
-    if (!previous && options.leading === false) previous = now
-    var remaining = wait - (now - previous)
-    context = this
-    args = arguments
-    if (remaining <= 0 || remaining > wait) {
-      if (timeout) {
-        clearTimeout(timeout)
-        timeout = null
-      }
-      previous = now
-      func.apply(context, args)
-      if (!timeout) context = args = null
-    } else if (!timeout && options.trailing !== false) {
-      timeout = setTimeout(later, remaining)
-    }
-  }
-  throttled.cancel = function () {
-    clearTimeout(timeout)
-    previous = 0
-    timeout = null
-  }
-  return throttled
 }
 ```
-
-参考阅读：
-
-- [JavaScript专题之跟着 underscore 学节流](https://github.com/mqyqingfeng/Blog/issues/26)
-  :::
-
-## 手写 bind
-
-::: details 参考答案
-
-```js
-Function.prototype.bind2 = function (context) {
-  if (typeof this !== 'function') {
-    throw new Error('Function.prototype.bind - what is trying to be bound is not callable')
-  }
-
-  var self = this
-  var args = Array.prototype.slice.call(arguments, 1)
-
-  var fNOP = function () {}
-
-  var fBound = function () {
-    var bindArgs = Array.prototype.slice.call(arguments)
-    return self.apply(this instanceof fNOP ? this : context, args.concat(bindArgs))
-  }
-
-  fNOP.prototype = this.prototype
-  fBound.prototype = new fNOP()
-  return fBound
-}
-```
-
-参考阅读：
-
-- [JavaScript深入之bind的模拟实现](https://github.com/mqyqingfeng/Blog/issues/12)
 
 :::
 
@@ -289,45 +155,52 @@ Function.prototype.bind2 = function (context) {
 
 ::: details 参考答案
 
+**call 实现**:
+
 ```js
-Function.prototype.call2 = function (context) {
-  var context = context || window
-  context.fn = this
+Function.prototype.myCall = function (context, ...args) {
+  context = context || window // 默认上下文是 window
+  const fnSymbol = Symbol() // 使用 Symbol 防止属性冲突
+  context[fnSymbol] = this // this 就是原函数
 
-  var args = []
-  for (var i = 1, len = arguments.length; i < len; i++) {
-    args.push('arguments[' + i + ']')
-  }
+  const result = context[fnSymbol](...args) // 执行函数
 
-  var result = eval('context.fn(' + args + ')')
-
-  delete context.fn
-  return result
-}
-
-Function.prototype.apply = function (context, arr) {
-  var context = Object(context) || window
-  context.fn = this
-
-  var result
-  if (!arr) {
-    result = context.fn()
-  } else {
-    var args = []
-    for (var i = 0, len = arr.length; i < len; i++) {
-      args.push('arr[' + i + ']')
-    }
-    result = eval('context.fn(' + args + ')')
-  }
-
-  delete context.fn
+  delete context[fnSymbol] // 删除属性
   return result
 }
 ```
 
-参考阅读：
+**apply 实现**:
 
-- [JavaScript深入之call和apply的模拟实现](https://github.com/mqyqingfeng/Blog/issues/11)
+```js
+Function.prototype.myApply = function (context, args) {
+  context = context || window
+  const fnSymbol = Symbol()
+  context[fnSymbol] = this
+
+  // apply 接收数组参数
+  const result = Array.isArray(args) ? context[fnSymbol](...args) : context[fnSymbol]()
+
+  delete context[fnSymbol]
+  return result
+}
+```
+
+:::
+
+## 手写 bind
+
+::: details 参考答案
+
+```js
+Function.prototype.myBind = function (context, ...args) {
+  const fn = this
+  return function (...newArgs) {
+    // 合并参数
+    return fn.apply(context, [...args, ...newArgs])
+  }
+}
+```
 
 :::
 
@@ -526,152 +399,124 @@ start()
 
 :::
 
-## 手写 Promise
+## 手写 Promise (精简版)
 
 ::: details 参考答案
 
+这是满足核心逻辑的最简实现，适合面试手写：
+
 ```js
 class MyPromise {
-  // 构造方法
   constructor(executor) {
-    // 初始化值
-    this.initValue()
-    // 初始化this指向
-    this.initBind()
-    // 执行传进来的函数
-    executor(this.resolve, this.reject)
+    this.state = 'pending' // 状态：pending, fulfilled, rejected
+    this.value = undefined // 成功的值
+    this.reason = undefined // 失败的原因
+    this.onResolvedCallbacks = [] // 成功回调队列
+    this.onRejectedCallbacks = [] // 失败回调队列
+
+    const resolve = (value) => {
+      if (this.state === 'pending') {
+        this.state = 'fulfilled'
+        this.value = value
+        this.onResolvedCallbacks.forEach((fn) => fn())
+      }
+    }
+
+    const reject = (reason) => {
+      if (this.state === 'pending') {
+        this.state = 'rejected'
+        this.reason = reason
+        this.onRejectedCallbacks.forEach((fn) => fn())
+      }
+    }
+
+    try {
+      executor(resolve, reject)
+    } catch (err) {
+      reject(err)
+    }
   }
 
-  initBind() {
-    // 初始化this
-    this.resolve = this.resolve.bind(this)
-    this.reject = this.reject.bind(this)
-  }
-
-  initValue() {
-    // 初始化值
-    this.PromiseResult = null // 终值
-    this.PromiseState = 'pending' // 状态
-  }
-
-  resolve(value) {
-    // 如果执行resolve，状态变为fulfilled
-    this.PromiseState = 'fulfilled'
-    // 终值为传进来的值
-    this.PromiseResult = value
-  }
-
-  reject(reason) {
-    // 如果执行reject，状态变为rejected
-    this.PromiseState = 'rejected'
-    // 终值为传进来的reason
-    this.PromiseResult = reason
+  then(onFulfilled, onRejected) {
+    if (this.state === 'fulfilled') onFulfilled(this.value)
+    if (this.state === 'rejected') onRejected(this.reason)
+    if (this.state === 'pending') {
+      this.onResolvedCallbacks.push(() => onFulfilled(this.value))
+      this.onRejectedCallbacks.push(() => onRejected(this.reason))
+    }
   }
 }
 ```
 
-参考阅读：
-
-- [看了就会，手写Promise原理，最通俗易懂的版本！！！](https://juejin.cn/post/6994594642280857630)
-  :::
+:::
 
 ## 手写 Promise.all
 
 ::: details 参考答案
 
 ```js
-static all(promises) {
-  const result = []
-  let count = 0
-  return new MyPromise((resolve, reject) => {
-    const addData = (index, value) => {
-        result[index] = value
+Promise.myAll = function (promises) {
+  return new Promise((resolve, reject) => {
+    let result = []
+    let count = 0
+    promises.forEach((p, i) => {
+      // 包装成 Promise 处理非 Promise 项
+      Promise.resolve(p).then((res) => {
+        result[i] = res
         count++
         if (count === promises.length) resolve(result)
-    }
-    promises.forEach((promise, index) => {
-        if (promise instanceof MyPromise) {
-            promise.then(res => {
-                addData(index, res)
-            }, err => reject(err))
-        } else {
-            addData(index, promise)
-        }
+      }, reject) // 只要有一个失败就 reject
     })
   })
 }
 ```
 
-参考阅读：
-
-- [看了就会，手写Promise原理，最通俗易懂的版本！！！](https://juejin.cn/post/6994594642280857630)
-  :::
+:::
 
 ## 手写 Promise.race
 
 ::: details 参考答案
 
 ```js
-static race(promises) {
-  return new MyPromise((resolve, reject) => {
-    promises.forEach(promise => {
-      if (promise instanceof MyPromise) {
-          promise.then(res => {
-              resolve(res)
-          }, err => {
-              reject(err)
-          })
-      } else {
-          resolve(promise)
-      }
+Promise.myRace = function (promises) {
+  return new Promise((resolve, reject) => {
+    promises.forEach((p) => {
+      Promise.resolve(p).then(resolve, reject) // 谁快谁赢
     })
   })
 }
 ```
 
-参考阅读：
-
-- [看了就会，手写Promise原理，最通俗易懂的版本！！！](https://juejin.cn/post/6994594642280857630)
-  :::
+:::
 
 ## 手写 Promise.allSettled
 
 ::: details 参考答案
 
 ```js
-static allSettled(promises) {
-  return new Promise((resolve, reject) => {
-    const res = []
+Promise.myAllSettled = function (promises) {
+  return new Promise((resolve) => {
+    let result = []
     let count = 0
-    const addData = (status, value, i) => {
-      res[i] = {
-          status,
-          value
-      }
-      count++
-      if (count === promises.length) {
-          resolve(res)
-      }
-    }
-    promises.forEach((promise, i) => {
-      if (promise instanceof MyPromise) {
-        promise.then(res => {
-          addData('fulfilled', res, i)
-        }, err => {
-          addData('rejected', err, i)
-        })
-      } else {
-        addData('fulfilled', promise, i)
-      }
+    promises.forEach((p, i) => {
+      Promise.resolve(p).then(
+        (value) => {
+          result[i] = { status: 'fulfilled', value }
+          count++
+          if (count === promises.length) resolve(result)
+        },
+        (reason) => {
+          result[i] = { status: 'rejected', reason }
+          count++
+          if (count === promises.length) resolve(result)
+        }
+      )
     })
   })
 }
 ```
 
-参考阅读：
-
-- [看了就会，手写Promise原理，最通俗易懂的版本！！！](https://juejin.cn/post/6994594642280857630)
-  :::
+:::
 
 ## 手写一个 LazyMan 实现 sleep 机制
 
@@ -1004,207 +849,72 @@ compose 函数是函数式编程中的重要工具，它能够帮助我们构建
 
 :::
 
-## 手写一个 LRU 缓存
+## 手写 instanceof
 
 ::: details 参考答案
 
-LRU（Least Recently Used）是一种缓存淘汰策略，它会优先删除最近最少使用的数据。下面提供两种实现方式：使用 Map 的简单实现和不使用 Map 的基础实现。
-
-1. 使用 Map 的实现
+`instanceof` 运算符用于检测构造函数的 `prototype` 属性是否出现在某个实例对象的原型链上。
 
 ```js
-class LRUCache {
-  constructor(capacity) {
-    this.cache = new Map()
-    this.capacity = capacity
-  }
+function myInstanceof(left, right) {
+  // 基本数据类型直接返回 false
+  if (typeof left !== 'object' || left === null) return false
 
-  get(key) {
-    if (!this.cache.has(key)) return -1
+  // 获取对象的原型
+  let proto = Object.getPrototypeOf(left)
 
-    // 将访问的元素移到最新使用的位置
-    const value = this.cache.get(key)
-    this.cache.delete(key)
-    this.cache.set(key, value)
-    return value
-  }
+  // 循环判断原型链
+  while (true) {
+    // 查找到尽头，说明不匹配
+    if (proto === null) return false
 
-  put(key, value) {
-    // 如果 key 已存在，先删除
-    if (this.cache.has(key)) {
-      this.cache.delete(key)
-    }
-    // 如果达到容量限制，删除最久未使用的元素
-    else if (this.cache.size >= this.capacity) {
-      // Map 的 keys() 会按插入顺序返回键
-      const firstKey = this.cache.keys().next().value
-      this.cache.delete(firstKey)
-    }
+    // 找到相同的原型对象
+    if (proto === right.prototype) return true
 
-    this.cache.set(key, value)
+    // 继续向上查找
+    proto = Object.getPrototypeOf(proto)
   }
 }
 
-// 使用示例
-const cache = new LRUCache(2)
-cache.put(1, 1) // 缓存是 {1=1}
-cache.put(2, 2) // 缓存是 {1=1, 2=2}
-console.log(cache.get(1)) // 返回 1
-cache.put(3, 3) // 删除 key 2，缓存是 {1=1, 3=3}
-console.log(cache.get(2)) // 返回 -1 (未找到)
+// 示例
+class Person {}
+const p = new Person()
+console.log(myInstanceof(p, Person)) // true
+console.log(myInstanceof(p, Object)) // true
 ```
 
-2. 使用双向链表的实现（不依赖 Map）
+:::
+
+## 手写 new 操作符
+
+::: details 参考答案
+
+`new` 操作符的执行过程：
+
+1. 创建一个新对象
+2. 将新对象的原型指向构造函数的 prototype
+3. 将构造函数的 this 指向新对象，并执行构造函数
+4. 如果构造函数返回了对象，则返回该对象；否则返回新对象
 
 ```js
-// 双向链表节点
-class Node {
-  constructor(key, value) {
-    this.key = key
-    this.value = value
-    this.prev = null
-    this.next = null
-  }
+function myNew(Constructor, ...args) {
+  // 1. 创建新对象，并继承构造函数的 prototype
+  const obj = Object.create(Constructor.prototype)
+
+  // 2. 执行构造函数，绑定 this
+  const result = Constructor.apply(obj, args)
+
+  // 3. 如果构造函数返回了对象，则返回该对象；否则返回新对象
+  return typeof result === 'object' && result !== null ? result : obj
 }
 
-class LRUCache {
-  constructor(capacity) {
-    this.capacity = capacity
-    this.cache = {} // 哈希表用于O(1)查找
-    this.count = 0
-    // 创建头尾哨兵节点
-    this.head = new Node(0, 0)
-    this.tail = new Node(0, 0)
-    this.head.next = this.tail
-    this.tail.prev = this.head
-  }
-
-  // 将节点移到双向链表头部
-  moveToHead(node) {
-    this.removeNode(node)
-    this.addToHead(node)
-  }
-
-  // 从链表中删除节点
-  removeNode(node) {
-    node.prev.next = node.next
-    node.next.prev = node.prev
-  }
-
-  // 在链表头部添加节点
-  addToHead(node) {
-    node.prev = this.head
-    node.next = this.head.next
-    this.head.next.prev = node
-    this.head.next = node
-  }
-
-  // 删除链表尾部节点
-  removeTail() {
-    const node = this.tail.prev
-    this.removeNode(node)
-    return node
-  }
-
-  get(key) {
-    if (key in this.cache) {
-      const node = this.cache[key]
-      this.moveToHead(node)
-      return node.value
-    }
-    return -1
-  }
-
-  put(key, value) {
-    if (key in this.cache) {
-      // 如果 key 存在，更新值并移到头部
-      const node = this.cache[key]
-      node.value = value
-      this.moveToHead(node)
-    } else {
-      // 创建新节点
-      const newNode = new Node(key, value)
-      this.cache[key] = newNode
-      this.addToHead(newNode)
-      this.count++
-
-      // 如果超过容量，删除最久未使用的
-      if (this.count > this.capacity) {
-        const tail = this.removeTail()
-        delete this.cache[tail.key]
-        this.count--
-      }
-    }
-  }
+// 示例
+function Person(name, age) {
+  this.name = name
+  this.age = age
 }
-
-// 使用示例
-const cache = new LRUCache(2)
-cache.put(1, 1)
-cache.put(2, 2)
-console.log(cache.get(1)) // 返回 1
-cache.put(3, 3) // 删除 key 2
-console.log(cache.get(2)) // 返回 -1 (未找到)
-cache.put(4, 4) // 删除 key 1
-console.log(cache.get(1)) // 返回 -1 (未找到)
-console.log(cache.get(3)) // 返回 3
-console.log(cache.get(4)) // 返回 4
-```
-
-实现原理说明：
-
-1. **Map 实现版本**：
-
-   - 利用 Map 的特性，它能够记住键的原始插入顺序
-   - get 操作时将访问的元素移到最后（最新使用）
-   - put 操作时如果超出容量，删除第一个元素（最久未使用）
-
-2. **双向链表实现版本**：
-   - 使用哈希表实现 O(1) 的查找
-   - 使用双向链表维护数据的使用顺序
-   - 最近使用的数据放在链表头部
-   - 最久未使用的数据在链表尾部
-
-性能分析：
-
-1. **时间复杂度**：
-
-   - get 操作：O(1)
-   - put 操作：O(1)
-
-2. **空间复杂度**：
-   - O(capacity)，其中 capacity 是缓存的容量
-
-使用场景：
-
-1. **浏览器缓存**：
-
-```js
-const browserCache = new LRUCache(100)
-browserCache.put('url1', 'response1')
-browserCache.put('url2', 'response2')
-```
-
-2. **内存缓存**：
-
-```js
-const memoryCache = new LRUCache(1000)
-memoryCache.put('userId1', userDataObject1)
-memoryCache.put('userId2', userDataObject2)
-```
-
-3. **数据库查询缓存**：
-
-```js
-const queryCache = new LRUCache(50)
-function query(sql) {
-  const cached = queryCache.get(sql)
-  if (cached !== -1) return cached
-
-  const result = executeQuery(sql)
-  queryCache.put(sql, result)
-  return result
-}
+const p = myNew(Person, 'Tom', 18)
+console.log(p.name) // Tom
 ```
 
 :::
