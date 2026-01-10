@@ -526,3 +526,193 @@ Source Map 是一个映射文件 (`.map`)，存储了源代码与构建后代码
     - **不推荐**: `eval`, `inline-source-map` (体积太大，不适合生产)。
 
 :::
+
+## Vite 常用配置有哪些？分别解决什么问题？
+
+::: details 参考答案
+
+常用配置可以按“开发体验、构建产物、工程约束”来回答。
+
+1. 基础骨架
+
+```ts
+import { defineConfig, loadEnv } from 'vite'
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+
+  return {
+    base: env.VITE_PUBLIC_PATH ?? '/',
+  }
+})
+```
+
+2. 开发服务器（跨域代理/端口/打开浏览器）
+
+```ts
+export default defineConfig({
+  server: {
+    port: 5173,
+    open: true,
+    proxy: {
+      '/api': {
+        target: 'https://example.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
+})
+```
+
+3. 路径别名与解析（减少相对路径地狱）
+
+```ts
+import { resolve } from 'node:path'
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
+})
+```
+
+4. 构建配置（产物目录/SourceMap/分包）
+
+```ts
+export default defineConfig({
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
+})
+```
+
+5. 环境变量（多环境、区分 dev/qa/prod）
+
+- `.env` / `.env.development` / `.env.production`，并通过 `import.meta.env` 读取。
+- 只会暴露以 `VITE_` 开头的变量到客户端。
+
+6. CSS 相关（全局变量/预处理器）
+
+```ts
+export default defineConfig({
+  css: {
+    preprocessorOptions: {
+      scss: {
+        additionalData: `@use "@/styles/vars.scss" as *;`,
+      },
+    },
+  },
+})
+```
+
+7. 依赖预构建（修复依赖兼容/加速启动）
+
+```ts
+export default defineConfig({
+  optimizeDeps: {
+    include: ['lodash-es'],
+    exclude: ['some-big-lib'],
+  },
+})
+```
+
+回答思路：你先讲 `server.proxy`、`resolve.alias`、`build.rollupOptions`、`env` 这四块，基本就能覆盖 80% 项目配置。
+
+:::
+
+## Webpack 常用配置有哪些？分别解决什么问题？
+
+::: details 参考答案
+
+常用配置可以按“入口出口、模块处理、开发体验、优化策略”来回答。
+
+1. 入口与出口（产物命名、公共路径、清理目录）
+
+```js
+const path = require('path')
+
+module.exports = {
+  mode: 'production',
+  entry: './src/index.js',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: '[name].[contenthash].js',
+    chunkFilename: '[name].[contenthash].chunk.js',
+    publicPath: '/',
+    clean: true,
+  },
+}
+```
+
+2. 模块规则（Loader：处理 TS/CSS/图片）
+
+```js
+module.exports = {
+  module: {
+    rules: [
+      { test: /\.tsx?$/, exclude: /node_modules/, use: 'ts-loader' },
+      { test: /\.css$/, use: ['style-loader', 'css-loader'] },
+      { test: /\.(png|jpe?g|gif|svg)$/i, type: 'asset' },
+    ],
+  },
+  resolve: { extensions: ['.ts', '.tsx', '.js'] },
+}
+```
+
+3. 插件（Plugin：注入 HTML、抽离 CSS、注入常量）
+
+```js
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+
+module.exports = {
+  plugins: [
+    new HtmlWebpackPlugin({ template: './public/index.html' }),
+    new MiniCssExtractPlugin({ filename: '[name].[contenthash].css' }),
+  ],
+}
+```
+
+4. 开发服务器（HMR/代理/History 路由）
+
+```js
+module.exports = {
+  devServer: {
+    hot: true,
+    historyApiFallback: true,
+    proxy: { '/api': 'http://localhost:3000' },
+  },
+}
+```
+
+5. 优化（分包、压缩、缓存）
+
+```js
+module.exports = {
+  cache: { type: 'filesystem' },
+  optimization: {
+    splitChunks: { chunks: 'all' },
+    runtimeChunk: 'single',
+  },
+}
+```
+
+6. SourceMap（开发定位快，生产安全可控）
+
+- 开发常用：`eval-cheap-module-source-map`
+- 生产常用：`hidden-source-map`（配合 Sentry 等平台符号化）
+
+回答思路：先说四大件 `entry/output/module/plugins`，再补 `devServer/optimization/devtool/cache`，结构清晰且不漏点。
+
+:::
