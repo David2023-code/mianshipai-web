@@ -153,13 +153,29 @@ React 没有直接将事件绑定到 DOM 元素上，而是实现了一套 **合
 
 ::: details 参考答案
 
-**核心**: 允许渲染过程被 **中断** 和 **恢复**。
+一句话：并发机制让 React 在一次渲染里可以“先保交互、后补细节”，渲染任务可 **打断/续跑/重做**，从而避免卡主线程。
 
-1.  **Concurrent Mode**: 不是一个具体的 API，而是一种底层能力。
-2.  **特性**:
-    - **useTransition**: 将某些更新标记为“非紧急”，允许高优先级更新插队。
-    - **useDeferredValue**: 延迟更新某个值，类似防抖/节流。
-    - **Streaming SSR**: 服务端流式渲染，渐进式展示页面。
+面试背诵版（3 句）：
+
+1. 目标：把“CPU 忙导致的卡顿”变成“渐进可用”，优先响应输入与动画。
+2. 手段：Render 阶段可中断，React 用优先级调度不同更新，低优先级让位给高优先级。
+3. 结果：用户先看到可交互的 UI，耗时更新与数据展示可以延后或分段呈现。
+
+关键点拆解：
+
+1. 这不是多线程
+   - JS 还是单线程执行，并发指的是“可中断的调度模型”，不是同时跑多个 render。
+2. 发生在哪里
+   - 主要发生在 **Render 阶段**（可中断、可重做）；**Commit 阶段**仍然是一次性、不可中断的 DOM 提交。
+3. 怎么区分优先级
+   - React 内部把更新分成不同优先级（如输入/点击更高，列表过滤、搜索结果刷新可更低），调度时允许“高优先级插队”。
+4. 你能用到哪些能力（常见 API/特性）
+   - `startTransition` / `useTransition`：把一类更新标记为“非紧急”，保证输入等紧急更新更快完成。
+   - `useDeferredValue`：把某个值的更新延后，让 UI 先保持流畅。
+   - `Suspense`：在数据/代码未就绪时先展示 fallback，配合并发实现更平滑的加载体验。
+   - `createRoot`：开启 React 18 的新根（并发能力的基础入口）。
+
+一句话场景：输入框驱动大列表过滤时，用 transition/defer 让“输入不掉帧”，列表结果稍后更新。
 
 :::
 
@@ -167,14 +183,28 @@ React 没有直接将事件绑定到 DOM 元素上，而是实现了一套 **合
 
 ::: details 参考答案
 
-1.  **Render 阶段** (可中断):
-    - 遍历 Fiber 树，执行组件的 render 函数。
-    - 对比新旧 Fiber 节点 (Diff)，打上标记 (EffectTag: Placement, Update, Deletion)。
-    - 生成一棵新的 Fiber 树 (WorkInProgress Tree)。
-2.  **Commit 阶段** (不可中断):
-    - **Before Mutation**: 执行 `getSnapshotBeforeUpdate`。
-    - **Mutation**: 执行 DOM 操作（增删改）。
-    - **Layout**: DOM 更新完成，执行 `useLayoutEffect`, `componentDidMount`, `componentDidUpdate`。
+一句话：协调就是“算出要怎么改 + 真的去改”，对应 **Render（计算）** 和 **Commit（提交）** 两阶段。
+
+面试背诵版（口诀）：
+
+- Render：遍历 Fiber → Diff 对比 → 打标记 → 生成 WIP 树（可中断）
+- Commit：BeforeMutation → Mutation → Layout（不可中断）
+
+1. Render 阶段（可中断，做计算）
+
+   - 做什么：从 root 开始遍历 Fiber，执行组件函数/`render`，拿到下一次 UI 描述。
+   - Diff 怎么比：同层比较为主（type + key），能复用则复用，不能复用就新建/删除。
+   - 产出什么：生成 workInProgress Fiber 树，并把副作用收集成标记（常见：Placement / Update / Deletion）。
+
+2. Commit 阶段（不可中断，做落地）
+   - Before Mutation：DOM 变更前的读取类工作（如 `getSnapshotBeforeUpdate`）。
+   - Mutation：真正执行 DOM 增删改，应用副作用。
+   - Layout：DOM 更新完成后，同步执行布局相关副作用（如 `useLayoutEffect`、类组件的 `componentDidMount/Update`）。
+
+常见追问点（用一句话回答）
+
+- 为什么 Render 可中断、Commit 不可中断：Render 只是计算，打断最多重新算；Commit 直接改 DOM，打断会让 UI 处于不一致的中间态。
+- key 的意义：让同层 Diff 更稳定，减少不必要的卸载/重建与状态错位。
 
 :::
 
