@@ -611,7 +611,16 @@ type User1 = Partial<User> // 属性全部可选，类似 `?`
 const u: User1 = {}
 ```
 
-`Require<T>` 属性设置为必选 （和 Partial 相反）
+`Required<T>` 属性设置为必选（和 Partial 相反）
+
+```ts
+interface User {
+  name?: string
+  age?: number
+}
+type User1 = Required<User>
+const u: User1 = { name: 'x', age: 20 }
+```
 
 `Pick<T, K>` 挑选部分属性
 
@@ -627,7 +636,7 @@ const u: User1 = { name: 'x', age: 20 }
 
 `Omit<T, K>` 剔除部分属性（和 Pick 相反）
 
-`ReadOnly<T>` 属性设置为只读
+`Readonly<T>` 属性设置为只读
 
 相当于为每个属性都设置一遍 `readonly`
 
@@ -639,6 +648,48 @@ interface User {
 type User1 = Readonly<User>
 const u: User1 = { name: 'x', age: 20 }
 // u.name = 'y' // 报错
+```
+
+`Record<K, T>` 用 key 生成对象类型（常用于字典/映射表）
+
+```ts
+type Status = 'loading' | 'success' | 'error'
+type StatusText = Record<Status, string>
+
+const text: StatusText = {
+  loading: '加载中',
+  success: '成功',
+  error: '失败',
+}
+```
+
+`Exclude<T, U>` / `Extract<T, U>` 联合类型的差集/交集
+
+```ts
+type T = 'a' | 'b' | 'c'
+type T1 = Exclude<T, 'a'> // 'b' | 'c'
+type T2 = Extract<T, 'a' | 'c'> // 'a' | 'c'
+```
+
+`NonNullable<T>` 去掉 `null | undefined`
+
+```ts
+type T = string | null | undefined
+type T1 = NonNullable<T> // string
+```
+
+`Parameters<T>` / `ReturnType<T>` 提取函数参数与返回值类型
+
+```ts
+type Fn = (x: string, y: number) => Promise<boolean>
+type P = Parameters<Fn> // [string, number]
+type R = ReturnType<Fn> // Promise<boolean>
+```
+
+`Awaited<T>` 提取 Promise resolve 之后的类型
+
+```ts
+type T = Awaited<Promise<Promise<string>>> // string
 ```
 
 :::
@@ -794,5 +845,326 @@ console.log(window.test)
 ::: details
 
 - https://juejin.cn/post/6929793926979125255
+
+:::
+
+## Vue 和 React 项目中，一般如何组织类型文件？
+
+参考答案
+
+::: details
+
+核心原则：**就近放置（靠近业务） + 适度抽离（共享复用） + 严控全局（只放声明）**。
+
+**1）组件/页面的局部类型：就近放（优先）**
+
+- 只在当前组件/页面使用的类型，直接写在同文件里或同目录里，减少跳转和“全局类型污染”
+- React 常见：`type Props = { ... }`、`type State = ...`
+- Vue 常见：`defineProps<...>()`、`defineEmits<...>()`、`defineModel<...>()` 的类型就近定义
+
+**2）按业务域（feature/module）组织类型：用“模块内 types.ts”**
+
+推荐把类型跟业务域绑定，而不是跟技术层绑定（避免出现一个巨大的 `types` 目录什么都往里塞）。
+
+例如：
+
+```txt
+src/
+  features/
+    user/
+      api.ts
+      types.ts
+      index.ts
+    order/
+      api.ts
+      types.ts
+```
+
+`types.ts` 里放 `User`、`UserProfile`、`Order`、`OrderStatus` 等“业务模型类型”。
+
+**3）跨模块共享类型：集中在 src/types 或 src/shared**
+
+共享类型要有明确边界，通常是“通用基础结构”：
+
+- 分页：`PageResult<T>`
+- 通用响应：`ApiResponse<T>`
+- 表单/枚举字典：`Option<T>`
+
+示例：
+
+```txt
+src/
+  types/
+    api.ts
+    pagination.ts
+    common.ts
+```
+
+**4）接口/后端协议类型：单独一层（不要和 UI 类型混在一起）**
+
+建议按“请求/响应 DTO”组织，和“前端业务模型”区分开：
+
+```txt
+src/
+  api/
+    user/
+      dto.ts
+      client.ts
+```
+
+如果团队有 OpenAPI/Swagger，优先使用代码生成（减少手写和漂移）。
+
+**5）全局声明类型：只放 \*.d.ts，且尽量少**
+
+用于：
+
+- 扩展 `window`、`import.meta.env`
+- 第三方库缺类型时做补充声明
+- Vue 项目里的 `env.d.ts`、`shims-vue.d.ts`（按工程脚手架约定）
+
+示例：
+
+```txt
+src/
+  types/
+    global.d.ts
+env.d.ts
+```
+
+**6）命名与导出习惯（降低维护成本）**
+
+- 文件名：`types.ts` / `xxx.types.ts` 二选一，项目内统一
+- 类型导出：尽量 `export type`（避免把值也导出去），需要声明合并时用 `interface`
+- 避免：一个巨大的 `types/index.ts` 全量 re-export 导致循环依赖和增量编译变慢
+
+一句话总结：**类型跟业务走；共享才抽；声明才全局**。
+
+:::
+
+## TS 类型收窄（Narrowing）有哪些常见方式？
+
+参考答案
+
+::: details
+
+常见方式（面试高频）：
+
+- `typeof`：收窄基础类型（string/number/boolean/bigint/symbol）
+- `instanceof`：收窄 class 实例
+- `in`：判断对象是否包含某个 key
+- 判等：对字面量类型（`'a' | 'b'`、`true | false`）很常用
+- 可辨识联合：依赖 `kind/type/tag` 字段做 `switch`
+- 自定义类型守卫：`x is T` 形式
+
+```ts
+function formatId(id: string | number) {
+  if (typeof id === 'string') return id.toUpperCase()
+  return id.toFixed(2)
+}
+```
+
+:::
+
+## 什么是类型守卫（Type Guard）？怎么写自定义类型守卫？
+
+参考答案
+
+::: details
+
+类型守卫的目的：让 TS 在某个分支里“确认”变量是更具体的类型。
+
+自定义类型守卫常见写法：
+
+```ts
+type Cat = { kind: 'cat'; meow: () => void }
+type Dog = { kind: 'dog'; bark: () => void }
+
+function isCat(x: Cat | Dog): x is Cat {
+  return x.kind === 'cat'
+}
+
+function act(x: Cat | Dog) {
+  if (isCat(x)) x.meow()
+  else x.bark()
+}
+```
+
+:::
+
+## 什么是可辨识联合（Discriminated Union）？有什么好处？
+
+参考答案
+
+::: details
+
+可辨识联合：联合类型里每个分支都有一个共同的“标识字段”（如 `type`/`kind`），通过它来安全分支。
+
+好处：
+
+- 分支判断简单直观（`switch`/`if`）
+- 更容易做到“穷尽检查”，新增分支时编译器能提醒你补齐逻辑
+
+```ts
+type Loading = { status: 'loading' }
+type Success = { status: 'success'; data: string }
+type ErrorState = { status: 'error'; message: string }
+type State = Loading | Success | ErrorState
+
+function render(s: State) {
+  switch (s.status) {
+    case 'loading':
+      return '...'
+    case 'success':
+      return s.data
+    case 'error':
+      return s.message
+    default: {
+      const _exhaustive: never = s
+      return _exhaustive
+    }
+  }
+}
+```
+
+:::
+
+## 函数重载（Function Overload）怎么写？用在什么场景？
+
+参考答案
+
+::: details
+
+写法：先写“多个签名”，最后写一个“实现签名”（实现签名必须兼容所有重载签名）。
+
+场景：
+
+- 同一个函数根据入参类型不同返回不同类型（比如格式化、解析、工厂函数）
+
+```ts
+function toArray(value: string): string[]
+function toArray(value: number): number[]
+function toArray(value: string | number) {
+  return [value]
+}
+
+const a = toArray('x')
+const b = toArray(1)
+```
+
+:::
+
+## as const 有什么用？解决了什么问题？
+
+参考答案
+
+::: details
+
+`as const` 的作用：把“可变、宽泛”的推导结果，变成“只读、字面量”的推导结果。
+
+典型场景：
+
+- 配置对象、路由表、枚举映射表，希望 key/value 都是字面量类型
+
+```ts
+const config = {
+  env: 'prod',
+  retry: 2,
+} as const
+
+type Env = (typeof config)['env']
+```
+
+:::
+
+## satisfies 是什么？和 as 有什么区别？
+
+参考答案
+
+::: details
+
+`satisfies` 用来“检查某个值满足某个类型”，但尽量保留该值更精确的推导（不强制变成目标类型）。
+
+对比：
+
+- `as`：强制断言为某个类型，可能掩盖错误
+- `satisfies`：会校验是否满足类型，不满足就报错，同时保留更精确的字面量推导
+
+```ts
+type Routes = Record<string, { path: `/${string}` }>
+
+const routes = {
+  home: { path: '/' },
+  profile: { path: '/profile' },
+} satisfies Routes
+
+type RouteKeys = keyof typeof routes
+```
+
+:::
+
+## 什么是条件类型（Conditional Types）？infer 用来做什么？
+
+参考答案
+
+::: details
+
+条件类型：根据类型条件决定返回哪种类型，常用于写通用工具类型。
+
+`infer`：在条件类型中“提取”某一部分类型出来。
+
+```ts
+type MyReturnType<T> = T extends (...args: any[]) => infer R ? R : never
+
+type R1 = MyReturnType<() => number>
+type R2 = MyReturnType<(x: string) => Promise<boolean>>
+```
+
+:::
+
+## 什么是声明合并（Declaration Merging）？有哪些常见表现？
+
+参考答案
+
+::: details
+
+声明合并：同名声明在 TS 中会被合并（最常见是 `interface`）。
+
+常见表现：
+
+- 同名 `interface` 会合并字段（用于渐进扩展类型）
+- `namespace` 与函数/类同名时也有合并场景（现在项目里用得少）
+
+```ts
+interface User {
+  id: string
+}
+
+interface User {
+  name: string
+}
+
+const u: User = { id: '1', name: 'x' }
+```
+
+:::
+
+## 常见 tsconfig 严格项有哪些？一般怎么选？
+
+参考答案
+
+::: details
+
+常见严格项（团队项目高频）：
+
+- `strict`：总开关
+- `noImplicitAny`：禁止隐式 any
+- `strictNullChecks`：区分 null/undefined（大型项目非常关键）
+- `noUncheckedIndexedAccess`：索引访问更严格（更安全，但更“啰嗦”）
+- `exactOptionalPropertyTypes`：可选属性语义更精确（对一些代码有侵入）
+
+经验原则：
+
+- 新项目：尽量开 `strict`，再按团队接受度逐个开启更严格项
+- 老项目：可以先开局部（某些目录/包）或先通过规则治理 any，再逐步收紧
 
 :::
