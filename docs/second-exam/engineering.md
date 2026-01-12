@@ -332,6 +332,116 @@ export default defineConfig({
 
 :::
 
+## Vue，React 项目如何配置 ESLint，Prettier？
+
+::: details 参考答案
+
+目标：ESLint 管代码质量与潜在错误，Prettier 管格式；两者配合时，避免“同一条规则既在 ESLint 又在 Prettier”造成冲突。
+
+通用做法（Vue/React 都一样）
+
+1. 分工与执行方式
+
+   - ESLint：`npm run lint`（CI 必跑）
+   - Prettier：`npm run format`（提交前或 CI 跑）
+   - 关键点：用 `eslint-config-prettier` 关闭 ESLint 里与格式相关的规则，把格式统一交给 Prettier
+
+2. 通用依赖与脚本（示例）
+
+```json
+{
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write ."
+  }
+}
+```
+
+```bash
+npm add -D eslint prettier eslint-config-prettier
+```
+
+3. Prettier 配置（示例：.prettierrc）
+
+```json
+{
+  "semi": false,
+  "singleQuote": true,
+  "printWidth": 100,
+  "trailingComma": "all"
+}
+```
+
+Vue 项目（Vue 3 + Vite 常见）
+
+1. 安装依赖（按需加 TS）
+
+```bash
+npm add -D eslint-plugin-vue vue-eslint-parser
+```
+
+2. ESLint 配置（示例：eslint.config.js，Flat Config）
+
+```js
+import js from '@eslint/js'
+import vue from 'eslint-plugin-vue'
+import prettier from 'eslint-config-prettier'
+
+export default [
+  js.configs.recommended,
+  ...vue.configs['flat/recommended'],
+  prettier,
+  {
+    files: ['**/*.{ts,tsx,js,jsx,vue}'],
+  },
+]
+```
+
+React 项目（React + Vite 常见）
+
+1. 安装依赖（按需加 TS）
+
+```bash
+npm add -D eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-jsx-a11y
+```
+
+2. ESLint 配置（示例：eslint.config.js，Flat Config）
+
+```js
+import js from '@eslint/js'
+import react from 'eslint-plugin-react'
+import reactHooks from 'eslint-plugin-react-hooks'
+import jsxA11y from 'eslint-plugin-jsx-a11y'
+import prettier from 'eslint-config-prettier'
+
+export default [
+  js.configs.recommended,
+  react.configs.flat.recommended,
+  reactHooks.configs.recommended,
+  jsxA11y.flatConfigs.recommended,
+  prettier,
+  {
+    settings: { react: { version: 'detect' } },
+    files: ['**/*.{ts,tsx,js,jsx}'],
+  },
+]
+```
+
+TS 项目补充（Vue/React 通用）
+
+- 安装：`npm add -D typescript typescript-eslint`
+- 配置：在 ESLint 配置里引入 `typescript-eslint` 的推荐规则，并把 `files` 包含 `ts/tsx`
+- 习惯：类型错误交给 `tsc --noEmit` 或框架自带 typecheck，ESLint 主要抓“逻辑问题/坏味道”
+
+常见面试追问点（用一句话回答）
+
+- 为什么要 `eslint-config-prettier`：避免 ESLint 的格式规则与 Prettier 打架。
+- 为什么不建议用 eslint 统一做格式：ESLint 的职责是代码质量，格式交给 Prettier 更稳定。
+
+:::
+
 ## Webpack 的核心概念有哪些？
 
 ::: details 参考答案
