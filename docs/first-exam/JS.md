@@ -458,6 +458,63 @@ console.log(obj1.name) // "Alice"
 
 :::
 
+## 什么是深拷贝？如何实现？
+
+参考答案
+
+::: details
+
+深拷贝：复制一份“完全独立”的数据结构，内部引用类型也会递归复制，新旧对象互不影响。浅拷贝只复制第一层，内部引用仍然共享。
+
+常见实现方式：
+
+1. `structuredClone`（浏览器/Node 新标准）
+
+- 优点：语义明确，支持循环引用，性能通常不错
+- 缺点：不能拷贝函数、DOM 节点等，遇到会抛错
+
+```js
+const copy = structuredClone(data)
+```
+
+2. `JSON.parse(JSON.stringify())`（面试常见但有坑）
+
+- 优点：写法简单
+- 缺点：会丢失 `undefined`、`symbol`、函数；`Date` 会变字符串；`RegExp` 变空对象；`Map/Set` 不支持；循环引用会报错
+
+3. 手写递归（面试最稳的讲法）
+
+```js
+function cloneDeep(value, cache = new WeakMap()) {
+  if (typeof value !== 'object' || value === null) return value
+  if (cache.has(value)) return cache.get(value)
+
+  if (value instanceof Date) return new Date(value)
+  if (value instanceof RegExp) return new RegExp(value.source, value.flags)
+  if (value instanceof Map) {
+    const result = new Map()
+    cache.set(value, result)
+    value.forEach((v, k) => result.set(cloneDeep(k, cache), cloneDeep(v, cache)))
+    return result
+  }
+  if (value instanceof Set) {
+    const result = new Set()
+    cache.set(value, result)
+    value.forEach((v) => result.add(cloneDeep(v, cache)))
+    return result
+  }
+
+  const result = Array.isArray(value) ? [] : Object.create(Object.getPrototypeOf(value))
+  cache.set(value, result)
+  Reflect.ownKeys(value).forEach((key) => {
+    result[key] = cloneDeep(value[key], cache)
+  })
+  return result
+}
+```
+
+:::
+
 ## 箭头函数和普通函数的区别
 
 参考答案
