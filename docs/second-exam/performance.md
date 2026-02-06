@@ -2,6 +2,46 @@
 
 性能优化是前端高阶面试必考题，也是区分初级和高级工程师的分水岭。建议从 **加载时** 和 **运行时** 两个维度来回答。
 
+## 前端项目性能优化可以从哪些方面入手？
+
+::: details 参考答案
+
+面试回答可以按“先定位，再分层优化”的结构：
+
+**0. 先做性能分析与指标**
+
+- 指标：FCP/LCP/CLS/INP(或 FID)/TTFB，首屏耗时、白屏、卡顿、内存
+- 工具：Chrome DevTools（Network/Performance/Memory）、Lighthouse、Web Vitals、线上监控
+- 原则：先用数据定位瓶颈，再做针对性优化，避免“拍脑袋优化”
+
+**1. 网络与缓存（让资源更快到达）**
+
+- CDN、HTTP/2/3、Gzip/Brotli、DNS 预解析/预连接
+- 强缓存/协商缓存、合理的 Cache-Control、静态资源 hash、Service Worker（可选）
+
+**2. 资源体积与请求（让资源更小更少）**
+
+- 代码分割、路由懒加载、按需加载组件/图片
+- Tree Shaking、移除未使用代码、压缩 JS/CSS、减少第三方依赖
+- 图片优化：WebP/AVIF、响应式图片、懒加载、占位与明确宽高避免 CLS
+
+**3. 渲染与交互（让页面更快可用）**
+
+- SSR/SSG/预渲染（按业务选择），骨架屏/渐进渲染
+- 长列表虚拟化、避免大 DOM、减少回流重绘、动画用 `transform/opacity`
+
+**4. JS 运行时（让主线程更空闲）**
+
+- 拆分长任务、用 `requestIdleCallback`/分片处理、Web Worker（计算密集型）
+- 降低高频事件开销：防抖/节流，减少不必要的状态更新与重渲染
+
+**5. 持续治理（让优化可持续）**
+
+- CI 里加体积/性能门禁（bundle size、Lighthouse CI）
+- 线上监控 + 报警 + 回归验证，形成闭环
+
+:::
+
 ## 🔥 首屏加载优化有哪些方案？
 
 这是一个非常宏大的问题，建议按流程顺序，挑选重点回答。
@@ -191,8 +231,9 @@ document.querySelectorAll('img').forEach((img) => observer.observe(img))
 
 ```html
 <img
-  src="/img/cover-640.webp"
-  srcset="/img/cover-640.webp 640w, /img/cover-1280.webp 1280w"
+  src="/img/cover-placeholder.webp"
+  data-src="/img/cover-640.webp"
+  data-srcset="/img/cover-640.webp 640w, /img/cover-1280.webp 1280w"
   sizes="(max-width: 768px) 100vw, 50vw"
   width="640"
   height="360"
@@ -200,6 +241,25 @@ document.querySelectorAll('img').forEach((img) => observer.observe(img))
   decoding="async"
   alt=""
 />
+```
+
+```js
+const images = document.querySelectorAll('img[data-src]')
+
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return
+      const img = entry.target
+      img.src = img.dataset.src
+      if (img.dataset.srcset) img.srcset = img.dataset.srcset
+      observer.unobserve(img)
+    })
+  },
+  { rootMargin: '200px 0px' }
+)
+
+images.forEach((img) => observer.observe(img))
 ```
 
 :::
@@ -218,6 +278,87 @@ document.querySelectorAll('img').forEach((img) => observer.observe(img))
 1.  **物理距离近**: 用户访问时，DNS 会将域名解析到**离用户最近**的节点 IP (如北京用户访问北京节点)，减少网络延迟。
 2.  **减轻源站压力**: 大部分流量被 CDN 挡住了，源站只处理动态请求和少量的回源请求。
 3.  **链路优化**: CDN 服务商之间有专用的高速传输链路。
+
+:::
+
+## 如何在 Webpack 和 Vite 项目中使用 CDN？
+
+::: details 参考答案
+
+思路：把“稳定且体积大的静态资源”（如 React/Vue、组件库、工具库）从打包产物里剥离出来，改为在 HTML 中通过 CDN 引入，并让打包器不要把它们再打进去。
+
+常见做法分两类：
+
+**1. UMD/IIFE 模式（通过 script 引入，全局变量使用）**
+
+特点：兼容性强，配置清晰，适合把 React/Vue 这类大库改走 CDN。
+
+Webpack（核心点：externals + 注入 script）：
+
+```js
+// webpack.config.js
+module.exports = {
+  externals: {
+    react: 'React',
+    'react-dom': 'ReactDOM',
+  },
+}
+```
+
+```html
+<!-- public/index.html 或 HtmlWebpackPlugin 模板 -->
+<script src="https://cdn.example.com/react/18/react.production.min.js"></script>
+<script src="https://cdn.example.com/react-dom/18/react-dom.production.min.js"></script>
+```
+
+Vite（核心点：rollup external + globals + 注入 script）：
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      external: ['react', 'react-dom'],
+      output: {
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM',
+        },
+      },
+    },
+  },
+})
+```
+
+```html
+<!-- index.html -->
+<script src="https://cdn.example.com/react/18/react.production.min.js"></script>
+<script src="https://cdn.example.com/react-dom/18/react-dom.production.min.js"></script>
+```
+
+**2. ESM 模式（通过 importmap/ESM CDN，把依赖映射到 CDN）**
+
+特点：更现代，依赖以 ESM 形式加载；适合依赖本身提供 ESM CDN 的场景。
+
+```html
+<script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18",
+      "react-dom": "https://esm.sh/react-dom@18"
+    }
+  }
+</script>
+```
+
+注意事项（面试加分）：
+
+- 版本锁定：CDN URL 固定版本号，避免线上被“漂移更新”影响
+- 缓存策略：CDN 资源强缓存；业务产物带 hash，可长期缓存
+- 安全：第三方 CDN 可加 SRI（`integrity`）与 `crossorigin`
+- 兜底：核心库可准备回源/备用 CDN，避免单点故障
 
 :::
 
