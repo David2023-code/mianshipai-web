@@ -159,6 +159,51 @@ document.querySelectorAll('img').forEach((img) => observer.observe(img))
 
 :::
 
+## 如何对大量图片进行优化？
+
+::: details 参考答案
+
+大量图片优化要从“体积更小、加载更少、渲染更快”三条线回答。
+
+**1. 降低体积（传输）**
+
+- **选对格式**：优先 WebP/AVIF；图标优先 SVG；照片类用有损压缩
+- **多规格输出**：同一张图生成多份尺寸，避免移动端下载大图
+- **上 CDN + 缓存**：图片走 CDN，配合 `Cache-Control` 长缓存（带 hash 的静态资源）
+
+**2. 少加载（调度）**
+
+- **懒加载**：首屏外的图片延后加载（`loading="lazy"` 或 IntersectionObserver）
+- **控制优先级**：首屏大图可 `fetchpriority="high"`，必要时 `preload` 关键图
+- **占位与渐进**：LQIP/模糊占位，先小图后大图，降低白屏感
+
+**3. 渲染更快（体验）**
+
+- **避免 CLS**：给图片设置明确 `width/height`（或容器固定比例），减少布局抖动
+- **减少解码阻塞**：`decoding="async"`，避免图片解码阻塞主线程
+
+**4. 列表场景（大量缩略图）**
+
+- **分页/无限滚动 + 虚拟列表**：一次只渲染/加载可视区域附近的图片
+- **缩略图优先**：列表展示用缩略图，点击/预览再加载原图
+
+**示例（响应式 + 懒加载）**
+
+```html
+<img
+  src="/img/cover-640.webp"
+  srcset="/img/cover-640.webp 640w, /img/cover-1280.webp 1280w"
+  sizes="(max-width: 768px) 100vw, 50vw"
+  width="640"
+  height="360"
+  loading="lazy"
+  decoding="async"
+  alt=""
+/>
+```
+
+:::
+
 ## 什么是 CDN？为什么它能加速？
 
 ::: details 参考答案
