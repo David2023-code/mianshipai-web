@@ -108,6 +108,46 @@ console.log(strings.flatMap((str) => str.split('')))
 
 :::
 
+## JS 有哪些基本类型？
+
+参考答案
+
+::: details
+
+JS 的“基本类型”（也叫原始类型/值类型）一共 7 + 1 个：
+
+- `undefined`
+- `null`
+- `boolean`
+- `number`
+- `string`
+- `symbol`
+- `bigint`（ES2020）
+
+除此之外还有 1 个引用类型的“对象”：
+
+- `object`（包含普通对象、数组、函数、日期、正则等；函数属于可调用对象）
+
+常见易错点：
+
+- `typeof null === 'object'` 是历史遗留问题，但 `null` 仍然是基本类型
+- `Number/String/Boolean` 这些是包装对象，和基本类型的 `number/string/boolean` 不是一回事
+
+```js
+typeof undefined // 'undefined'
+typeof null // 'object'
+typeof true // 'boolean'
+typeof 1 // 'number'
+typeof 'a' // 'string'
+typeof Symbol('x') // 'symbol'
+typeof 1n // 'bigint'
+typeof {} // 'object'
+typeof [] // 'object'
+typeof (() => {}) // 'function'
+```
+
+:::
+
 ## `typeof` 能判断哪些类型
 
 参考答案

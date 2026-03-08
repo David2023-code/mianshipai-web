@@ -1108,16 +1108,101 @@ type RouteKeys = keyof typeof routes
 
 ::: details
 
-条件类型：根据类型条件决定返回哪种类型，常用于写通用工具类型。
+条件类型（Conditional Types）可以理解为“类型层面的三元表达式”，语法是：
 
-`infer`：在条件类型中“提取”某一部分类型出来。
+`T extends U ? X : Y`
+
+含义：如果 `T` 能赋值给 `U`（满足约束），结果类型就是 `X`，否则是 `Y`。它常用于写“根据入参类型自动推导输出类型”的工具类型。
+
+### 1. 基本例子：把类型映射成另一种类型
+
+```ts
+type IsString<T> = T extends string ? true : false
+
+type A = IsString<'x'> // true
+type B = IsString<1> // false
+```
+
+### 2. 分布式条件类型（Distributive Conditional Types）
+
+当 `T` 是“裸类型参数”（直接写 `T extends ...`），且 `T` 传入联合类型时，会对联合类型逐个分发计算，再把结果联合起来：
+
+```ts
+type ToArray<T> = T extends any ? T[] : never
+
+type A = ToArray<string | number> // string[] | number[]
+```
+
+如果你不想分发，可以把 `T` 包一层（最常见是元组）：
+
+```ts
+type ToArray2<T> = [T] extends [any] ? T[] : never
+
+type B = ToArray2<string | number> // (string | number)[]
+```
+
+这也是很多内置工具类型实现里的关键点。
+
+### 3. 常见工具类型的底层就是条件类型
+
+`Exclude` / `Extract` 是最典型的两个：
+
+```ts
+type MyExclude<T, U> = T extends U ? never : T
+type MyExtract<T, U> = T extends U ? T : never
+
+type A = MyExclude<'a' | 'b' | 'c', 'a' | 'c'> // 'b'
+type B = MyExtract<'a' | 'b' | 'c', 'a' | 'c'> // 'a' | 'c'
+```
+
+### 4. infer 是做什么的
+
+`infer` 只能用在条件类型里，作用是“在 `extends` 判断为真时，把某一部分类型推断成一个类型变量”，从而在 `? :` 的结果里复用它。
+
+最常见用途：提取函数返回值、参数、Promise resolve 类型、数组元素类型、字符串模板中的片段等。
+
+#### 提取函数返回值 / 参数
 
 ```ts
 type MyReturnType<T> = T extends (...args: any[]) => infer R ? R : never
+type MyParameters<T> = T extends (...args: infer P) => any ? P : never
 
-type R1 = MyReturnType<() => number>
-type R2 = MyReturnType<(x: string) => Promise<boolean>>
+type R1 = MyReturnType<() => number> // number
+type P1 = MyParameters<(x: string, y: number) => void> // [string, number]
 ```
+
+#### 提取 Promise resolve 之后的类型（简化版 Awaited）
+
+```ts
+type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
+
+type A = UnwrapPromise<Promise<string>> // string
+type B = UnwrapPromise<number> // number
+```
+
+#### 提取数组元素类型
+
+```ts
+type ElementOf<T> = T extends (infer U)[] ? U : never
+
+type A = ElementOf<string[]> // string
+type B = ElementOf<[1, 2, 3]> // 1 | 2 | 3
+```
+
+#### 提取字符串模板中的部分（Template Literal Types + infer）
+
+```ts
+type GetId<T> = T extends `id:${infer U}` ? U : never
+
+type A = GetId<'id:123'> // '123'
+type B = GetId<'name:tom'> // never
+```
+
+### 5. 常见坑（面试高频）
+
+1. 条件类型里的 `extends` 是“类型可赋值关系”，不是运行时继承。
+2. 分布式条件类型只会在 `T` 是“裸类型参数”时触发；包一层就不会分发。
+3. `infer` 的推断只在 `extends` 成立时有效，且类型变量的作用域仅在这个条件类型表达式内。
 
 :::
 
