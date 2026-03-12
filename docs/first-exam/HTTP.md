@@ -409,6 +409,103 @@ axios
 
 :::
 
+## 如何实现 WebSocket 心跳检测？
+
+::: details 参考答案
+
+心跳的目标：防止中间网络设备（NAT/代理）把“长时间无数据”的连接回收，同时在链路异常时尽快发现“假连接”（断网/切后台/服务重启但客户端未感知）。
+
+基本套路（面试可背）：
+
+1. 客户端定时发送 ping（业务层消息）。
+2. 服务端收到 ping 立刻回 pong。
+3. 客户端在超时时间内没收到 pong，就主动 `close` 并触发重连。
+
+注意：
+
+- 浏览器原生 WebSocket API 不能手动发协议层 `ping/pong` 帧，通常用“业务消息”模拟（例如发 `{type:'ping'}`）。
+- 心跳间隔要小于服务端/代理的 idle timeout（常见 20s~60s），同时不要太频繁（浪费流量与电量）。
+
+浏览器端示例（心跳 + 超时关闭）
+
+```js
+function createHeartbeatWebSocket(url, { pingInterval = 25000, pongTimeout = 8000 } = {}) {
+  const ws = new WebSocket(url)
+
+  let pingTimer = null
+  let pongTimer = null
+
+  const start = () => {
+    pingTimer = setInterval(() => {
+      if (ws.readyState !== WebSocket.OPEN) return
+
+      ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }))
+
+      clearTimeout(pongTimer)
+      pongTimer = setTimeout(() => {
+        ws.close(4000, 'pong timeout')
+      }, pongTimeout)
+    }, pingInterval)
+  }
+
+  const stop = () => {
+    clearInterval(pingTimer)
+    clearTimeout(pongTimer)
+    pingTimer = null
+    pongTimer = null
+  }
+
+  ws.addEventListener('open', () => start())
+  ws.addEventListener('close', () => stop())
+  ws.addEventListener('error', () => stop())
+
+  ws.addEventListener('message', (e) => {
+    let msg
+    try {
+      msg = JSON.parse(e.data)
+    } catch {
+      return
+    }
+
+    if (msg?.type === 'pong') {
+      clearTimeout(pongTimer)
+      return
+    }
+  })
+
+  return ws
+}
+```
+
+服务端示例（Node.js，业务层 pong 回包）
+
+```js
+import { WebSocketServer } from 'ws'
+
+const wss = new WebSocketServer({ port: 8080 })
+
+wss.on('connection', (ws) => {
+  ws.on('message', (raw) => {
+    let msg
+    try {
+      msg = JSON.parse(raw.toString())
+    } catch {
+      return
+    }
+
+    if (msg?.type === 'ping') {
+      ws.send(JSON.stringify({ type: 'pong', ts: Date.now() }))
+    }
+  })
+})
+```
+
+追问：断线重连怎么做？
+
+- 在 `close/error` 里做退避重连（如 1s/2s/4s... 上限 30s），并在重连成功后恢复订阅与状态同步。
+
+:::
+
 ## Script 标签 defer 和 async 的区别？
 
 ::: details 参考答案
