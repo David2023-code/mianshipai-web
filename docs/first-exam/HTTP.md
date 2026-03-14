@@ -409,7 +409,7 @@ axios
 
 :::
 
-## 如何实现 WebSocket 心跳检测？
+## 如何实现 WebSocket 心跳检测、自动重连？
 
 ::: details 参考答案
 
@@ -419,25 +419,52 @@ axios
 
 1. 客户端定时发送 ping（业务层消息）。
 2. 服务端收到 ping 立刻回 pong。
-3. 客户端在超时时间内没收到 pong，就主动 `close` 并触发重连。
+3. 客户端在超时时间内没收到 pong，就主动 `close`。
+4. 在 `close/error` 里做自动重连（退避重连 + 上限 + 断网暂停），并在重连成功后恢复订阅与状态同步。
 
 注意：
 
 - 浏览器原生 WebSocket API 不能手动发协议层 `ping/pong` 帧，通常用“业务消息”模拟（例如发 `{type:'ping'}`）。
 - 心跳间隔要小于服务端/代理的 idle timeout（常见 20s~60s），同时不要太频繁（浪费流量与电量）。
+- 自动重连要做“退避 + 抖动（jitter）”，避免服务端重启时大量客户端同时重连造成雪崩。
+- 区分“正常关闭”和“异常断开”：如果你主动 `close(1000)`，一般不再重连；如果是网络/超时导致的关闭，才重连。
 
-浏览器端示例（心跳 + 超时关闭）
+浏览器端示例（心跳 + 超时关闭 + 自动重连）
 
 ```js
-function createHeartbeatWebSocket(url, { pingInterval = 25000, pongTimeout = 8000 } = {}) {
-  const ws = new WebSocket(url)
-
+function createReconnectingHeartbeatWebSocket(
+  url,
+  {
+    pingInterval = 25000,
+    pongTimeout = 8000,
+    reconnectBaseDelay = 1000,
+    reconnectMaxDelay = 30000,
+    reconnectJitter = 300,
+    maxRetries = Infinity,
+    shouldReconnect,
+    onOpen,
+    onClose,
+    onError,
+    onMessage,
+  } = {}
+) {
+  let ws
   let pingTimer = null
   let pongTimer = null
+  let retryTimer = null
+  let retryCount = 0
+  let manuallyClosed = false
 
-  const start = () => {
+  const clearHeartbeat = () => {
+    clearInterval(pingTimer)
+    clearTimeout(pongTimer)
+    pingTimer = null
+    pongTimer = null
+  }
+
+  const startHeartbeat = () => {
     pingTimer = setInterval(() => {
-      if (ws.readyState !== WebSocket.OPEN) return
+      if (!ws || ws.readyState !== WebSocket.OPEN) return
 
       ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }))
 
@@ -448,32 +475,75 @@ function createHeartbeatWebSocket(url, { pingInterval = 25000, pongTimeout = 800
     }, pingInterval)
   }
 
-  const stop = () => {
-    clearInterval(pingTimer)
-    clearTimeout(pongTimer)
-    pingTimer = null
-    pongTimer = null
+  const getBackoffDelay = () => {
+    const exp = Math.min(reconnectMaxDelay, reconnectBaseDelay * 2 ** retryCount)
+    const jitter = Math.floor(Math.random() * reconnectJitter)
+    return exp + jitter
   }
 
-  ws.addEventListener('open', () => start())
-  ws.addEventListener('close', () => stop())
-  ws.addEventListener('error', () => stop())
+  const connect = () => {
+    ws = new WebSocket(url)
 
-  ws.addEventListener('message', (e) => {
-    let msg
-    try {
-      msg = JSON.parse(e.data)
-    } catch {
-      return
-    }
+    ws.addEventListener('open', (e) => {
+      retryCount = 0
+      clearTimeout(retryTimer)
+      startHeartbeat()
+      onOpen?.(e)
+    })
 
-    if (msg?.type === 'pong') {
-      clearTimeout(pongTimer)
-      return
-    }
-  })
+    ws.addEventListener('close', (e) => {
+      clearHeartbeat()
+      onClose?.(e)
 
-  return ws
+      if (manuallyClosed) return
+
+      const canRetry = retryCount < maxRetries
+      const should = shouldReconnect ? shouldReconnect(e) : true
+      if (!canRetry || !should) return
+
+      const delay = getBackoffDelay()
+      retryCount += 1
+      retryTimer = setTimeout(() => connect(), delay)
+    })
+
+    ws.addEventListener('error', (e) => {
+      onError?.(e)
+    })
+
+    ws.addEventListener('message', (e) => {
+      onMessage?.(e)
+
+      let msg
+      try {
+        msg = JSON.parse(e.data)
+      } catch {
+        return
+      }
+
+      if (msg?.type === 'pong') {
+        clearTimeout(pongTimer)
+      }
+    })
+  }
+
+  connect()
+
+  return {
+    get socket() {
+      return ws
+    },
+    send(data) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false
+      ws.send(data)
+      return true
+    },
+    close(code = 1000, reason = 'manual close') {
+      manuallyClosed = true
+      clearTimeout(retryTimer)
+      clearHeartbeat()
+      ws?.close(code, reason)
+    },
+  }
 }
 ```
 
@@ -500,9 +570,11 @@ wss.on('connection', (ws) => {
 })
 ```
 
-追问：断线重连怎么做？
+补充：重连成功后如何“恢复现场”
 
-- 在 `close/error` 里做退避重连（如 1s/2s/4s... 上限 30s），并在重连成功后恢复订阅与状态同步。
+- 重新发送鉴权信息（如 token/房间 id）
+- 重新订阅频道/主题（如 `subscribe`）
+- 拉一次增量/全量状态（避免断线期间消息丢失导致状态不一致）
 
 :::
 
